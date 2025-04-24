@@ -43,7 +43,7 @@ importers:
         specifier: ^22.4.2
         version: 22.4.2
       '@types/three':
-        specifier: ^0.167.1
+        specifier: ^0.167.2
         version: 0.167.2
       nuxt:
         specifier: ^3.12.4
