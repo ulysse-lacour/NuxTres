@@ -1,44 +1,48 @@
 <template>
-	<TresMesh
-		:material="material"
-		:geometry="nodes.Suzanne.geometry"
-		ref="componentRef"
-	/>
+  <TresMesh
+    :material="material"
+    :geometry="nodes.Suzanne.geometry"
+    ref="componentRef"
+  />
 </template>
 
-<script setup>
-import { useRenderLoop } from '@tresjs/core'
-import { ShaderMaterial } from 'three'
-import { useGLTF } from '@tresjs/cientos'
+<script setup lang="ts">
+import { useRenderLoop } from "@tresjs/core";
+import { ShaderMaterial } from "three";
+import { useGLTF } from "@tresjs/cientos";
 
-import vertexShader from './vertex.glsl'
-import fragmentShader from './fragment.glsl'
+// @ts-ignore
+import vertexShader from "./vertex.glsl";
+// @ts-ignore
+import fragmentShader from "./fragment.glsl";
 
 //
 // Refs
 //
-const { onLoop } = useRenderLoop()
-const { nodes } = await useGLTF('/suzanne.glb')
+const { onLoop } = useRenderLoop();
+const { nodes } = await useGLTF("/suzanne.glb");
 
 // Dispose the default material
-nodes.Suzanne.material.dispose()
+if (nodes.Suzanne.material) {
+  nodes.Suzanne.material.dispose();
+}
 
 const material = new ShaderMaterial({
-	vertexShader,
-	fragmentShader,
-	uniforms: {
-		u_Time: { value: 0 },
-	},
-})
+  vertexShader,
+  fragmentShader,
+  uniforms: {
+    u_Time: { value: 0 },
+  },
+});
 
 //
 // Lifecycle
 //
 onMounted(async () => {
-	await nextTick()
+  await nextTick();
 
-	onLoop(({ elapsed }) => {
-		material.uniforms.u_Time.value = elapsed
-	})
-})
+  onLoop(({ elapsed }) => {
+    material.uniforms.u_Time.value = elapsed;
+  });
+});
 </script>

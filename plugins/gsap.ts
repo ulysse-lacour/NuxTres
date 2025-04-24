@@ -1,4 +1,4 @@
-import { gsap } from 'gsap'
+import { gsap } from "gsap";
 
 export default defineNuxtPlugin(() => {
   // gsap.registerPlugin(DrawSVGPlugin, ...)
@@ -10,7 +10,7 @@ export default defineNuxtPlugin(() => {
 
   return {
     provide: {
-      gsap
-    }
-  }
-})
+      gsap,
+    },
+  };
+});
