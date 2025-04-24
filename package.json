@@ -11,18 +11,33 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "typecheck": "nuxt typecheck"
+    "start": "node .output/server/index.mjs",
+    "typecheck": "nuxt typecheck",
+    "lint": "pnpm linter && pnpm formater",
+    "linter": "eslint .",
+    "formater": "prettier . --check",
+    "lintfix": "eslint . --fix && prettier . --write --list-different",
+    "linter-fix": "eslint . --fix",
+    "formater-fix": "prettier . --write --list-different"
   },
   "devDependencies": {
+    "@ianvs/prettier-plugin-sort-imports": "^4.4.1",
+    "@nuxt/eslint": "^1.0.0",
+    "@nuxtjs/color-mode": "^3.5.2",
     "@nuxtjs/google-fonts": "^3.2.0",
+    "@nuxtjs/tailwindcss": "^6.13.2",
     "@tresjs/nuxt": "^3.0.3",
     "@tweakpane/core": "^2.0.4",
     "@tweakpane/plugin-essentials": "^0.2.1",
     "@types/node": "^22.4.2",
     "@types/three": "^0.167.2",
+    "@typescript-eslint/eslint-plugin": "^8.22.0",
+    "@typescript-eslint/parser": "^8.22.0",
+    "@vueuse/nuxt": "^11.3.0",
+    "eslint": "^9.19.0",
     "nuxt": "^3.12.4",
-    "sass": "^1.77.8",
-    "sass-loader": "^16.0.1",
+    "prettier": "^3.4.2",
+    "prettier-plugin-tailwindcss": "^0.6.11",
     "typescript": "^5.4.2",
     "vite-plugin-glsl": "^1.3.0",
     "vue-tsc": "^2.2.10"
@@ -32,7 +47,10 @@
     "@tresjs/cientos": "^4.0.0",
     "gsap": "^3.12.5",
     "pinia": "^2.2.2",
+    "sass": "^1.83.4",
+    "tailwindcss": "^3.4.17",
     "three": "^0.167.1",
     "tweakpane": "^4.0.4"
-  }
+  },
+  "packageManager": "pnpm@9.15.4"
 }
