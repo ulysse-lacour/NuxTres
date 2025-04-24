@@ -7,27 +7,24 @@
 
     <!-- 3D Scene -->
     <div class="scene-container">
+      <div
+        v-if="cardGameStore.availableCards.length === 0"
+        class="no-cards-overlay"
+      >
+        <p>No cards left to play!</p>
+        <button class="reset-button" @click="resetGame">Play Again</button>
+      </div>
+
       <client-only>
         <CardGameScene />
       </client-only>
     </div>
 
-    <!-- Available Cards -->
-    <div class="cards-container">
-      <div v-if="cardGameStore.availableCards.length === 0" class="no-cards">
-        <p>No cards left to play!</p>
-        <button class="reset-button" @click="resetGame">Play Again</button>
-      </div>
-
-      <GameCard
-        v-for="card in cardGameStore.availableCards"
-        :key="card.id"
-        :id="card.id"
-        :name="card.name"
-        :color="card.color"
-        :is-played="card.isPlayed"
-        @play="playCard"
-      />
+    <div class="instructions">
+      <p>
+        Click on a card to play it. The played card will appear in the
+        background.
+      </p>
     </div>
   </div>
 </template>
@@ -39,33 +36,43 @@ definePageMeta({
 
 const cardGameStore = useCardGameStore();
 
-function playCard(cardId: number) {
-  cardGameStore.playCard(cardId);
-}
-
 function resetGame() {
   cardGameStore.resetGame();
 }
 </script>
 
 <style lang="scss" scoped>
+html,
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
 .card-game {
   width: 100%;
-  min-height: 100vh;
-  padding: 2rem;
+  height: 100vh;
+  padding: 0;
+  margin: 0;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
 
   .game-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
+    padding: 1rem 2rem;
     z-index: 10;
     position: relative;
 
     h1 {
       font-size: 2.5rem;
+      margin: 0;
     }
 
     .reset-button {
@@ -85,33 +92,37 @@ function resetGame() {
 
   .scene-container {
     flex: 1;
-    height: 400px;
-    border-radius: 10px;
+    position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    margin-bottom: 2rem;
-    position: relative;
-    z-index: 1;
-  }
 
-  .cards-container {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 1.5rem;
-    margin-bottom: 2rem;
-    position: relative;
-    z-index: 10;
-
-    .no-cards {
+    .no-cards-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: rgba(0, 0, 0, 0.7);
+      z-index: 20;
+      color: white;
       text-align: center;
-      padding: 2rem;
-      font-size: 1.5rem;
 
       p {
-        margin-bottom: 1rem;
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
       }
     }
+  }
+
+  .instructions {
+    text-align: center;
+    font-size: 1.1rem;
+    color: #555;
+    padding: 0.5rem;
+    margin: 0;
   }
 }
 </style>
