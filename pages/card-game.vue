@@ -17,7 +17,7 @@
       </client-only>
 
       <!-- Game instructions -->
-      <div class="instructions-panel">
+      <!-- <div class="instructions-panel">
         <h3>How to Play</h3>
         <p>Click on cards in your hand to place them on the wall.</p>
         <p>
@@ -26,7 +26,7 @@
             {{ cardGameStore.cards.length }}</strong
           >
         </p>
-      </div>
+      </div> -->
     </div>
   </div>
 </template>

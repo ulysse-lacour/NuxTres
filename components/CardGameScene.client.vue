@@ -1,17 +1,13 @@
 <template>
   <TresCanvas v-bind="gl" window-size>
-    <!-- Camera positioned for better view of cards -->
-    <TresPerspectiveCamera
-      ref="cameraRef"
-      :position="[0, 0, 12]"
-      :look-at="[0, -1.5, 0]"
-      :fov="55"
-    />
+    <!-- Camera positioned slightly higher to better view upward-facing cards -->
+    <TresPerspectiveCamera ref="cameraRef" :position="[0, 1, 12]" :look-at="[0, -1, 0]" :fov="50" />
 
     <!-- Enhanced lighting -->
     <TresAmbientLight :intensity="1.2" />
-    <TresDirectionalLight :position="[10, 10, 10]" :intensity="1.5" :cast-shadow="true" />
-    <TresDirectionalLight :position="[-10, -5, -10]" :intensity="0.8" color="#6b93d6" />
+    <TresDirectionalLight :position="[0, 0, 10]" :intensity="1.5" :cast-shadow="true" />
+    <TresDirectionalLight :position="[10, 5, 5]" :intensity="0.8" color="#ffffff" />
+    <TresDirectionalLight :position="[-10, -5, 5]" :intensity="0.6" color="#6b93d6" />
 
     <!-- Floor/ground -->
     <TresMesh :rotation="[-Math.PI / 2, 0, 0]" :position="[0, -6, 0]" receiveShadow>
@@ -37,11 +33,13 @@
         :card-id="card.id"
         :is-played="true"
         :scale="[0.9, 0.9, 0.9]"
+        :index="index"
+        :total-cards="cardGameStore.playedCards.length"
       />
     </TresGroup>
 
-    <!-- Available Cards - natural arrangement at bottom -->
-    <TresGroup ref="cardsGroupRef" :position="[0, -3.2, 6]">
+    <!-- Available Cards - straight line at bottom with slight upward tilt -->
+    <TresGroup ref="cardsGroupRef" :position="[0, -3.5, 4]">
       <Card
         v-for="(card, index) in cardGameStore.availableCards"
         :key="card.id"
@@ -50,7 +48,9 @@
         :color="card.color"
         :name="card.name"
         :card-id="card.id"
-        :scale="[0.8, 0.8, 0.8]"
+        :scale="[0.75, 0.75, 0.75]"
+        :index="index"
+        :total-cards="cardGameStore.availableCards.length"
         @card-clicked="handleCardClick"
       />
     </TresGroup>

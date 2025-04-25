@@ -76,6 +76,8 @@
     isPlayed?: boolean;
     scale?: [number, number, number];
     rotation?: [number, number, number];
+    index?: number;
+    totalCards?: number;
   }>();
 
   // Emits
@@ -85,7 +87,9 @@
 
   // Use card interaction composable
   const { cardRef, hoverY, isHovered, onPointerEnter, onPointerLeave } = useCardInteraction(
-    props.isPlayed
+    props.isPlayed,
+    props.index || 0,
+    props.totalCards || 1
   );
 
   // Use text color composable
