@@ -1,39 +1,56 @@
 <template>
   <TresCanvas v-bind="gl" window-size>
-    <!-- Fixed camera position (user already moved it to z=30) -->
-    <TresPerspectiveCamera ref="cameraRef" :position="[0, 1, 30]" :look-at="[0, 0, 0]" :fov="40" />
+    <!-- Camera positioned for better view of cards -->
+    <TresPerspectiveCamera
+      ref="cameraRef"
+      :position="[0, 0, 12]"
+      :look-at="[0, -1.5, 0]"
+      :fov="55"
+    />
 
-    <!-- Floor -->
-    <!-- <TresMesh :rotation="[-Math.PI / 2, 0, 0]" :position="[0, -1.5, 0]" :receive-shadow="true">
+    <!-- Enhanced lighting -->
+    <TresAmbientLight :intensity="1.2" />
+    <TresDirectionalLight :position="[10, 10, 10]" :intensity="1.5" :cast-shadow="true" />
+    <TresDirectionalLight :position="[-10, -5, -10]" :intensity="0.8" color="#6b93d6" />
+
+    <!-- Floor/ground -->
+    <TresMesh :rotation="[-Math.PI / 2, 0, 0]" :position="[0, -6, 0]" receiveShadow>
       <TresPlaneGeometry :args="[50, 50]" />
-      <TresMeshStandardMaterial color="#2c3e50" />
-    </TresMesh> -->
+      <TresMeshStandardMaterial color="#111827" />
+    </TresMesh>
 
-    <!-- Environment -->
-    <TresAmbientLight :intensity="0.5" />
-    <TresDirectionalLight :position="[5, 5, 5]" :intensity="1" :cast-shadow="true" />
+    <!-- Card Wall - where played cards go -->
+    <TresGroup ref="wallGroupRef" :position="[0, 2, 0]">
+      <!-- Wall background -->
+      <TresMesh :position="[0, 0, -0.6]" :scale="[20, 10, 0.5]">
+        <TresBoxGeometry :args="[1, 1, 0.1]" />
+        <TresMeshStandardMaterial :color="'#2c3e50'" :metalness="0.2" :roughness="0.8" />
+      </TresMesh>
 
-    <!-- Selected Card (Played Card) - in the background -->
-    <TresGroup v-if="cardGameStore.selectedCard" :position="[0, 0.5, -15]">
+      <!-- Played cards on wall -->
       <Card
-        :position="[0, 0, 0]"
-        :color="cardGameStore.selectedCard.color"
-        :name="cardGameStore.selectedCard.name"
-        :scale="[1.5, 1.5, 1.5]"
+        v-for="(card, index) in cardGameStore.playedCards"
+        :key="card.id"
+        :position="getWallPosition(index, cardGameStore.playedCards.length)"
+        :color="card.color"
+        :name="card.name"
+        :card-id="card.id"
         :is-played="true"
+        :scale="[0.9, 0.9, 0.9]"
       />
     </TresGroup>
 
-    <!-- Available Cards - extreme foreground at bottom of screen -->
-    <TresGroup ref="cardsGroupRef" :position="[0, 0, 25]">
+    <!-- Available Cards - natural arrangement at bottom -->
+    <TresGroup ref="cardsGroupRef" :position="[0, -3.2, 6]">
       <Card
         v-for="(card, index) in cardGameStore.availableCards"
         :key="card.id"
         :position="getCardPosition(index, cardGameStore.availableCards.length)"
+        :rotation="getCardRotation(index, cardGameStore.availableCards.length)"
         :color="card.color"
         :name="card.name"
         :card-id="card.id"
-        :scale="[0.28, 0.28, 0.28]"
+        :scale="[0.8, 0.8, 0.8]"
         @card-clicked="handleCardClick"
       />
     </TresGroup>
@@ -43,83 +60,56 @@
 <script setup lang="ts">
   import type { Group, PerspectiveCamera } from "three";
 
+  import { useCardGame } from "../composables/useCardGame";
+  import { useCardPositioning } from "../composables/useCardPositioning";
+  import { useViewport } from "../composables/useViewport";
+
   interface GL {
     clearColor: string;
     powerPreference: "high-performance" | "low-power" | "default";
   }
 
-  // Store
-  const cardGameStore = useCardGameStore();
+  // Setup card game composable
+  const { cardGameStore, handleCardClick } = useCardGame();
 
   // Refs
   const gl = reactive<GL>({
-    clearColor: "#1a1a2e",
+    clearColor: "#090c14",
     powerPreference: "high-performance",
   });
 
   const cardsGroupRef = shallowRef<Group | null>(null);
+  const wallGroupRef = shallowRef<Group | null>(null);
   const cameraRef = shallowRef<PerspectiveCamera | null>(null);
 
-  // Card scaling - fixed scale for extreme foreground
-  const cardScale = ref<[number, number, number]>([0.28, 0.28, 0.28]);
-  const viewportWidth = ref(0);
-  const minCardSpacing = 0.3; // Minimum spacing between cards
+  // Setup viewport composable
+  const { viewportWidth } = useViewport(40, 5);
 
-  // Update viewport width on window resize
-  onMounted(() => {
-    // Initial update
-    updateViewportSize();
+  // Setup card positioning
+  const { getCardPosition, getCardRotation } = useCardPositioning(viewportWidth);
 
-    // Listen for window resize
-    window.addEventListener("resize", updateViewportSize);
-  });
-
-  onBeforeUnmount(() => {
-    window.removeEventListener("resize", updateViewportSize);
-  });
-
-  // Calculate viewport width for cards at z=25
-  function updateViewportSize() {
-    // Calculate approximate viewport width at z=25
-    const fov = 40; // camera FOV in degrees
-    const distance = 5; // distance from camera to z=25 (30-25)
-    const halfWidth = Math.tan((fov * Math.PI) / 180 / 2) * distance;
-    viewportWidth.value = halfWidth * 2 * (window.innerWidth / window.innerHeight);
-  }
-
-  // Position cards to fill the entire viewport width
-  function getCardPosition(index: number, totalCards: number): [number, number, number] {
+  // Position for cards on the wall
+  function getWallPosition(index: number, totalCards: number): [number, number, number] {
     if (totalCards === 0) return [0, 0, 0];
 
-    // Calculate the total available width
-    const totalAvailableWidth = viewportWidth.value;
+    // Maximum cards per row
+    const cardsPerRow = 4;
 
-    // Card visual width in world units at z=25
-    const cardVisualWidth = 0.6;
+    // Calculate row and column
+    const row = Math.floor(index / cardsPerRow);
+    const col = index % cardsPerRow;
 
-    // Calculate spacing to fill viewport width
-    const availableWidthForSpacing = totalAvailableWidth - cardVisualWidth * totalCards;
-    const spacing = Math.max(minCardSpacing, availableWidthForSpacing / (totalCards - 1 || 1));
-
-    // Calculate total width with cards and spacing
-    const totalCardsWidth = cardVisualWidth * totalCards + spacing * Math.max(totalCards - 1, 0);
-
-    // Calculate the starting x position to center all cards
-    const startX = -totalCardsWidth / 2 + cardVisualWidth / 2;
-
-    // Position each card with calculated spacing
-    const x = startX + index * (cardVisualWidth + spacing);
-
-    // No y offset (all cards in same row)
-    const y = 0;
-
-    // Add subtle curve for depth perception
-    const z = -Math.abs(x) * 0.02;
+    // Calculate position
+    const x = (col - (cardsPerRow - 1) / 2) * 3;
+    const y = -row * 3.5;
+    const z = 0;
 
     return [x, y, z];
   }
 
-  function handleCardClick(cardId: number): void {
-    cardGameStore.playCard(cardId);
-  }
+  // Debug to console
+  onMounted(() => {
+    console.log("Available cards:", cardGameStore.availableCards);
+    console.log("Played cards:", cardGameStore.playedCards);
+  });
 </script>

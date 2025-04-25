@@ -1,42 +1,60 @@
 <template>
-  <TresGroup :position="position" :scale="scale || [1, 1, 1]">
+  <TresGroup :position="position" :scale="scale || [1, 1, 1]" :rotation="rotation || [0, 0, 0]">
     <TresMesh
       ref="cardRef"
-      :position="[0, isPlayed ? 0 : hoverY, 0]"
+      :position="[0, isPlayed ? 0 : hoverY, isHovered ? 0.2 : 0]"
       @click="handleClick"
       @pointer-enter="onPointerEnter"
       @pointer-leave="onPointerLeave"
     >
-      <TresBoxGeometry :args="[2, 3, 0.1]" />
-      <TresMeshStandardMaterial
-        :color="color"
-        :metalness="isPlayed ? 0.5 : 0.2"
-        :roughness="isPlayed ? 0.2 : 0.8"
-        :opacity="isHovered ? 1 : 0.9"
-        :transparent="true"
-      />
+      <!-- Card base with thinner border for better visibility -->
+      <TresBoxGeometry :args="[2.1, 3.1, 0.05]" />
+      <TresMeshStandardMaterial color="white" :metalness="0.6" :roughness="0.3" />
 
-      <!-- Card Text -->
-      <TresGroup :position="[0, 0, 0.06]">
+      <!-- Card face -->
+      <TresMesh :position="[0, 0, 0.06]">
+        <TresBoxGeometry :args="[2, 3, 0.1]" />
+        <TresMeshStandardMaterial
+          :color="color"
+          :metalness="isPlayed ? 0.6 : isHovered ? 0.5 : 0.3"
+          :roughness="isPlayed ? 0.2 : isHovered ? 0.4 : 0.6"
+          :emissive="color"
+          :emissiveIntensity="isHovered ? 0.2 : 0.05"
+        />
+      </TresMesh>
+
+      <!-- Card Text - simple and readable -->
+      <TresGroup :position="[0, 0, 0.2]">
         <Suspense>
           <Text3D
             :text="name"
             font="https://raw.githubusercontent.com/Tresjs/assets/main/fonts/FiraCodeRegular.json"
-            :size="0.2"
-            :height="0.05"
+            :size="0.25"
+            :height="0.08"
             center
             :color="textColor"
           />
         </Suspense>
       </TresGroup>
 
-      <!-- Highlight effect for hovered cards -->
+      <!-- Moderate spotlight for hover effect -->
       <TresSpotLight
         v-if="isHovered && !isPlayed"
         :intensity="3"
-        :position="[0, 3, 1]"
+        :position="[0, 2, 1]"
         :angle="0.5"
-        :penumbra="0.5"
+        :penumbra="0.7"
+        :color="color"
+        :distance="8"
+        :decay="1.5"
+      />
+
+      <!-- Subtle glow for played cards -->
+      <TresPointLight
+        v-if="isPlayed"
+        :intensity="1"
+        :position="[0, 0, 0.7]"
+        :distance="4"
         :color="color"
       />
     </TresMesh>
@@ -45,9 +63,9 @@
 
 <script setup lang="ts">
   import { Text3D } from "@tresjs/cientos";
-  import { useRenderLoop } from "@tresjs/core";
-  import { computed, ref } from "vue";
-  import type { Mesh } from "three";
+
+  import { useCardInteraction } from "../composables/useCardInteraction";
+  import { useTextColor } from "../composables/useTextColor";
 
   // Props
   const props = defineProps<{
@@ -57,6 +75,7 @@
     cardId?: number;
     isPlayed?: boolean;
     scale?: [number, number, number];
+    rotation?: [number, number, number];
   }>();
 
   // Emits
@@ -64,22 +83,13 @@
     (e: "card-clicked", cardId: number): void;
   }>();
 
-  // Refs
-  const { onLoop } = useRenderLoop();
-  const cardRef = shallowRef<Mesh | null>(null);
-  const hoverY = ref(0);
-  const isHovered = ref(false);
+  // Use card interaction composable
+  const { cardRef, hoverY, isHovered, onPointerEnter, onPointerLeave } = useCardInteraction(
+    props.isPlayed
+  );
 
-  // Computed
-  const textColor = computed(() => {
-    // Calculate if text should be black or white based on background color brightness
-    const color = props.color.replace("#", "");
-    const r = parseInt(color.substring(0, 2), 16);
-    const g = parseInt(color.substring(2, 4), 16);
-    const b = parseInt(color.substring(4, 6), 16);
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness > 128 ? "#000000" : "#ffffff";
-  });
+  // Use text color composable
+  const textColor = useTextColor(() => props.color);
 
   // Methods
   function handleClick() {
@@ -87,45 +97,4 @@
       emit("card-clicked", props.cardId);
     }
   }
-
-  function onPointerEnter() {
-    if (!props.isPlayed) {
-      isHovered.value = true;
-      document.body.style.cursor = "pointer";
-    }
-  }
-
-  function onPointerLeave() {
-    isHovered.value = false;
-    document.body.style.cursor = "default";
-  }
-
-  // Animation
-  onMounted(async () => {
-    await nextTick();
-
-    onLoop(({ elapsed }) => {
-      if (!cardRef.value) return;
-
-      // Different animations for played vs available cards
-      if (props.isPlayed) {
-        // Slow rotation for played cards
-        cardRef.value.rotation.y = Math.sin(elapsed * 0.2) * 0.2;
-        cardRef.value.rotation.x = Math.sin(elapsed * 0.1) * 0.05;
-        cardRef.value.position.y = Math.sin(elapsed * 0.3) * 0.3 + 0.5;
-      } else {
-        // Subtle floating animation for available cards
-        cardRef.value.rotation.y = Math.sin(elapsed * 0.5) * 0.05;
-
-        // Enhanced hover effect
-        if (isHovered.value) {
-          hoverY.value = Math.sin(elapsed * 2) * 0.05 + 0.3;
-          cardRef.value.rotation.z = Math.sin(elapsed * 3) * 0.03;
-        } else {
-          hoverY.value = Math.sin(elapsed * 0.2) * 0.05;
-          cardRef.value.rotation.z = 0;
-        }
-      }
-    });
-  });
 </script>

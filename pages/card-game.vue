@@ -15,24 +15,30 @@
       <client-only>
         <CardGameScene />
       </client-only>
-    </div>
 
-    <div class="instructions">
-      <p>Click on a card to play it. The played card will appear in the background.</p>
+      <!-- Game instructions -->
+      <div class="instructions-panel">
+        <h3>How to Play</h3>
+        <p>Click on cards in your hand to place them on the wall.</p>
+        <p>
+          <strong
+            >Cards played: {{ cardGameStore.playedCards.length }} /
+            {{ cardGameStore.cards.length }}</strong
+          >
+        </p>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+  import { useCardGame } from "../composables/useCardGame";
+
   definePageMeta({
     layout: "default",
   });
 
-  const cardGameStore = useCardGameStore();
-
-  function resetGame() {
-    cardGameStore.resetGame();
-  }
+  const { cardGameStore, resetGame } = useCardGame();
 </script>
 
 <style lang="scss" scoped>
@@ -55,6 +61,7 @@
     box-sizing: border-box;
     overflow: hidden;
     position: relative;
+    background: linear-gradient(to bottom, #1a1a2e, #16213e);
 
     .game-header {
       display: flex;
@@ -63,10 +70,15 @@
       padding: 1rem 2rem;
       z-index: 10;
       position: relative;
+      background-color: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(5px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 
       h1 {
         font-size: 2.5rem;
         margin: 0;
+        color: #ffffff;
+        text-shadow: 0 0 10px rgba(0, 100, 255, 0.5);
       }
 
       .reset-button {
@@ -77,9 +89,17 @@
         border-radius: 5px;
         cursor: pointer;
         font-size: 1rem;
+        transition: all 0.2s ease;
+        box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
 
         &:hover {
           background-color: #2980b9;
+          transform: translateY(-2px);
+          box-shadow: 0 5px 15px rgba(52, 152, 219, 0.6);
+        }
+
+        &:active {
+          transform: translateY(0);
         }
       }
     }
@@ -103,10 +123,36 @@
         z-index: 20;
         color: white;
         text-align: center;
+        backdrop-filter: blur(5px);
 
         p {
           font-size: 2rem;
           margin-bottom: 1.5rem;
+          text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+      }
+
+      .instructions-panel {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        padding: 15px;
+        background-color: rgba(0, 0, 0, 0.6);
+        color: white;
+        border-radius: 8px;
+        max-width: 300px;
+        z-index: 10;
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+
+        h3 {
+          margin-top: 0;
+          color: #3498db;
+        }
+
+        p {
+          margin: 8px 0;
         }
       }
     }
