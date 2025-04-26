@@ -1,11 +1,16 @@
 <template>
-  <TresGroup :position="position" :scale="scale || [1, 1, 1]" :rotation="rotation || [0, 0, 0]">
+  <TresGroup
+    :position="position"
+    :scale="scale || [1, 1, 1]"
+    :rotation="isHovered && !isPlayed ? hoverRotation : rotation || [0, 0, 0]"
+  >
     <TresMesh
       ref="cardRef"
       :position="[0, isPlayed ? 0 : hoverY, isHovered ? 0.2 : 0]"
       @click="handleClick"
       @pointer-enter="onPointerEnter"
       @pointer-leave="onPointerLeave"
+      :render-order="renderOrder"
     >
       <!-- Card base with thinner border for better visibility -->
       <TresBoxGeometry :args="[2.1, 3.1, 0.05]" />
@@ -23,7 +28,7 @@
         />
       </TresMesh>
 
-      <!-- Card Text - simple and readable -->
+      <!-- Card Text using Suspense for async loading -->
       <TresGroup :position="[0, 0, 0.2]">
         <Suspense>
           <Text3D
@@ -37,7 +42,7 @@
         </Suspense>
       </TresGroup>
 
-      <!-- Moderate spotlight for hover effect -->
+      <!-- Spotlight for hover effect - only enabled when needed -->
       <TresSpotLight
         v-if="isHovered && !isPlayed"
         :intensity="3"
@@ -63,11 +68,15 @@
 
 <script setup lang="ts">
   import { Text3D } from "@tresjs/cientos";
+  import { computed, onMounted } from "vue";
+  import type { Mesh } from "three";
 
   import { useCardInteraction } from "../composables/useCardInteraction";
   import { useTextColor } from "../composables/useTextColor";
 
-  // Props
+  /**
+   * Card component props
+   */
   const props = defineProps<{
     position: [number, number, number];
     color: string;
@@ -78,24 +87,64 @@
     rotation?: [number, number, number];
     index?: number;
     totalCards?: number;
+    renderOrder?: number;
   }>();
 
-  // Emits
+  /**
+   * Card events
+   */
   const emit = defineEmits<{
     (e: "card-clicked", cardId: number): void;
   }>();
 
-  // Use card interaction composable
+  // Use card interaction composable for hover effects
   const { cardRef, hoverY, isHovered, onPointerEnter, onPointerLeave } = useCardInteraction(
     props.isPlayed,
     props.index || 0,
     props.totalCards || 1
   );
 
-  // Use text color composable
+  /**
+   * Calculate hover rotation - tilts up and rotates toward center when hovered
+   */
+  const hoverRotation = computed<[number, number, number]>(() => {
+    // Calculate normalized position to determine rotation direction
+    // -1 is far left, 0 is center, 1 is far right
+    const normalizedPosition =
+      props.totalCards && props.totalCards > 1 && props.index !== undefined
+        ? (props.index / (props.totalCards - 1)) * 2 - 1
+        : 0;
+
+    // Get base rotation from props
+    const baseRotation = props.rotation || [0, 0, 0];
+
+    // When hovered:
+    // 1. Tilt up more dramatically (X axis)
+    // 2. Rotate toward center (Y axis) - negative normalized position creates center-facing effect
+    //    - Left cards (negative normalized position) get positive Y rotation (turn right)
+    //    - Right cards (positive normalized position) get negative Y rotation (turn left)
+    return [
+      -0.3, // More upward tilt
+      -normalizedPosition * 0.5, // Rotate toward center
+      baseRotation[2], // Keep original Z rotation
+    ];
+  });
+
+  // Set render order for proper z-ordering when mounted
+  onMounted(() => {
+    if (cardRef.value && props.renderOrder !== undefined) {
+      // Set the renderOrder property on the Three.js mesh
+      // This ensures cards render in the correct order (higher renderOrder renders on top)
+      cardRef.value.renderOrder = props.renderOrder;
+    }
+  });
+
+  // Get appropriate text color based on card color
   const textColor = useTextColor(() => props.color);
 
-  // Methods
+  /**
+   * Handle card click events
+   */
   function handleClick() {
     if (props.cardId !== undefined && !props.isPlayed) {
       emit("card-clicked", props.cardId);

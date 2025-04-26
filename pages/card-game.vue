@@ -5,26 +5,25 @@
       <button class="reset-button" @click="resetGame">Reset Game</button>
     </div>
 
-    <!-- 3D Scene -->
+    <!-- 3D Scene container with game state overlays -->
     <div class="scene-container">
+      <!-- End game overlay - only shown when no cards are left -->
       <div v-if="cardGameStore.availableCards.length === 0" class="no-cards-overlay">
         <p>No cards left to play!</p>
         <button class="reset-button" @click="resetGame">Play Again</button>
       </div>
 
+      <!-- Lazy-load 3D scene for better performance -->
       <client-only>
         <CardGameScene />
       </client-only>
 
-      <!-- Game instructions -->
+      <!-- Game instructions panel - uncomment to enable -->
       <!-- <div class="instructions-panel">
         <h3>How to Play</h3>
         <p>Click on cards in your hand to place them on the wall.</p>
         <p>
-          <strong
-            >Cards played: {{ cardGameStore.playedCards.length }} /
-            {{ cardGameStore.cards.length }}</strong
-          >
+          <strong>Cards played: {{ cardGameStore.playedCards.length }} / {{ cardGameStore.cards.length }}</strong>
         </p>
       </div> -->
     </div>
@@ -34,10 +33,12 @@
 <script setup lang="ts">
   import { useCardGame } from "../composables/useCardGame";
 
+  // Set page metadata
   definePageMeta({
     layout: "default",
   });
 
+  // Initialize game state with card game composable
   const { cardGameStore, resetGame } = useCardGame();
 </script>
 
@@ -63,6 +64,7 @@
     position: relative;
     background: linear-gradient(to bottom, #1a1a2e, #16213e);
 
+    // Header with title and reset button
     .game-header {
       display: flex;
       justify-content: space-between;
@@ -104,11 +106,13 @@
       }
     }
 
+    // Main scene container
     .scene-container {
       flex: 1;
       position: relative;
       overflow: hidden;
 
+      // Game completion overlay
       .no-cards-overlay {
         position: absolute;
         top: 0;
@@ -132,6 +136,7 @@
         }
       }
 
+      // Optional instructions panel
       .instructions-panel {
         position: absolute;
         bottom: 20px;

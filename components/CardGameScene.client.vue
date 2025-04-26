@@ -1,32 +1,32 @@
 <template>
   <TresCanvas v-bind="gl" window-size>
-    <!-- Camera positioned slightly higher to better view upward-facing cards -->
+    <!-- Camera positioned for optimal card viewing -->
     <TresPerspectiveCamera ref="cameraRef" :position="[0, 1, 12]" :look-at="[0, -1, 0]" :fov="50" />
 
-    <!-- Enhanced lighting -->
+    <!-- Scene lighting -->
     <TresAmbientLight :intensity="1.2" />
     <TresDirectionalLight :position="[0, 0, 10]" :intensity="1.5" :cast-shadow="true" />
     <TresDirectionalLight :position="[10, 5, 5]" :intensity="0.8" color="#ffffff" />
     <TresDirectionalLight :position="[-10, -5, 5]" :intensity="0.6" color="#6b93d6" />
 
-    <!-- Floor/ground -->
+    <!-- Environment floor -->
     <TresMesh :rotation="[-Math.PI / 2, 0, 0]" :position="[0, -6, 0]" receiveShadow>
       <TresPlaneGeometry :args="[50, 50]" />
       <TresMeshStandardMaterial color="#111827" />
     </TresMesh>
 
-    <!-- Card Wall - where played cards go -->
+    <!-- Wall area for played cards -->
     <TresGroup ref="wallGroupRef" :position="[0, 2, 0]">
-      <!-- Wall background -->
+      <!-- Wall background with subtle depth -->
       <TresMesh :position="[0, 0, -0.6]" :scale="[20, 10, 0.5]">
         <TresBoxGeometry :args="[1, 1, 0.1]" />
         <TresMeshStandardMaterial :color="'#2c3e50'" :metalness="0.2" :roughness="0.8" />
       </TresMesh>
 
-      <!-- Played cards on wall -->
+      <!-- Played cards display -->
       <Card
         v-for="(card, index) in cardGameStore.playedCards"
-        :key="card.id"
+        :key="`played-${card.id}`"
         :position="getWallPosition(index, cardGameStore.playedCards.length)"
         :color="card.color"
         :name="card.name"
@@ -38,68 +38,81 @@
       />
     </TresGroup>
 
-    <!-- Available Cards - straight line at bottom with slight upward tilt -->
+    <!-- Available cards hand area -->
     <TresGroup ref="cardsGroupRef" :position="[0, -3.5, 4]">
       <Card
         v-for="(card, index) in cardGameStore.availableCards"
-        :key="card.id"
+        :key="`available-${card.id}`"
         :position="getCardPosition(index, cardGameStore.availableCards.length)"
         :rotation="getCardRotation(index, cardGameStore.availableCards.length)"
         :color="card.color"
         :name="card.name"
         :card-id="card.id"
-        :scale="[0.75, 0.75, 0.75]"
+        :scale="[0.85, 0.85, 0.85]"
         :index="index"
         :total-cards="cardGameStore.availableCards.length"
         @card-clicked="handleCardClick"
+        :render-order="cardGameStore.availableCards.length - index"
       />
     </TresGroup>
   </TresCanvas>
 </template>
 
 <script setup lang="ts">
+  import { onBeforeUnmount, onMounted, reactive, shallowRef } from "vue";
   import type { Group, PerspectiveCamera } from "three";
 
   import { useCardGame } from "../composables/useCardGame";
   import { useCardPositioning } from "../composables/useCardPositioning";
   import { useViewport } from "../composables/useViewport";
 
+  /**
+   * WebGL rendering configuration
+   */
   interface GL {
     clearColor: string;
     powerPreference: "high-performance" | "low-power" | "default";
   }
 
-  // Setup card game composable
+  // Game state and card handling
   const { cardGameStore, handleCardClick } = useCardGame();
 
-  // Refs
+  // WebGL settings for optimal performance
   const gl = reactive<GL>({
-    clearColor: "#090c14",
+    clearColor: "#090c14", // Dark blue background
     powerPreference: "high-performance",
   });
 
+  // Scene refs using shallowRef for performance (avoid deep reactivity overhead)
   const cardsGroupRef = shallowRef<Group | null>(null);
   const wallGroupRef = shallowRef<Group | null>(null);
   const cameraRef = shallowRef<PerspectiveCamera | null>(null);
 
-  // Setup viewport composable
-  const { viewportWidth } = useViewport(40, 5);
+  // Responsive viewport calculations
+  const { viewportWidth, updateViewportSize } = useViewport(50, 8);
 
-  // Setup card positioning
+  // Card positioning system
   const { getCardPosition, getCardRotation } = useCardPositioning(viewportWidth);
 
-  // Position for cards on the wall
+  /**
+   * Calculate position for a card on the wall display
+   * Organizes cards in a grid pattern
+   *
+   * @param index - Card index
+   * @param totalCards - Total cards on wall
+   * @returns [x, y, z] position coordinates
+   */
   function getWallPosition(index: number, totalCards: number): [number, number, number] {
     if (totalCards === 0) return [0, 0, 0];
 
-    // Maximum cards per row
+    // Maximum cards per row for grid layout
     const cardsPerRow = 4;
 
-    // Calculate row and column
+    // Calculate grid position
     const row = Math.floor(index / cardsPerRow);
     const col = index % cardsPerRow;
 
-    // Calculate position
+    // Position in grid with proper spacing
     const x = (col - (cardsPerRow - 1) / 2) * 3;
     const y = -row * 3.5;
     const z = 0;
@@ -107,9 +120,22 @@
     return [x, y, z];
   }
 
-  // Debug to console
+  // Setup and event handling
   onMounted(() => {
-    console.log("Available cards:", cardGameStore.availableCards);
-    console.log("Played cards:", cardGameStore.playedCards);
+    // Initial viewport calculation
+    updateViewportSize();
+
+    // Setup responsive behavior
+    const handleResize = () => {
+      updateViewportSize();
+      console.log("Viewport updated:", viewportWidth.value);
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    // Cleanup function to be called on unmount
+    onBeforeUnmount(() => {
+      window.removeEventListener("resize", handleResize);
+    });
   });
 </script>

@@ -1,40 +1,39 @@
 import { useRenderLoop } from "@tresjs/core";
-import { nextTick, onMounted, ref } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { Mesh } from "three";
 import type { Ref } from "vue";
 
+/**
+ * Composable to handle card interaction behaviors including hover effects and animations
+ *
+ * @param isPlayed - Whether this card has been played to the wall
+ * @param index - Card index in its collection (available or played)
+ * @param totalCards - Total number of cards in the collection
+ * @returns Card interaction properties and methods
+ */
 export function useCardInteraction(
   isPlayed: boolean = false,
   index: number = 0,
   totalCards: number = 1
 ) {
-  const { onLoop } = useRenderLoop();
-  const cardRef = ref<Mesh | null>(null);
+  // Use shallowRef for three.js objects to avoid deep reactivity overhead
+  const cardRef = shallowRef<Mesh | null>(null);
   const hoverY = ref(0);
   const isHovered = ref(false);
   const targetHoverY = ref(0);
-  const targetRotationY = ref(0);
   const hoverTransitionSpeed = isPlayed ? 0.05 : 0.15; // Slower for played cards
 
-  // Calculate if the card is on the left, right, or center
-  // -1 is far left, 0 is center, 1 is far right
+  // Calculate normalized position for positioning (-1 to 1 range)
   const normalizedPosition = totalCards <= 1 ? 0 : (index / (totalCards - 1)) * 2 - 1;
 
-  console.log(`Card ${index}/${totalCards} - position: ${normalizedPosition}`);
+  // Store animation loop stop function to properly clean up
+  let stopAnimationLoop: (() => void) | null = null;
 
   function onPointerEnter() {
     if (!isPlayed) {
       isHovered.value = true;
       document.body.style.cursor = "pointer";
       targetHoverY.value = 0.6; // Higher hover for hand layout
-
-      // Set target rotation - subtle center-facing effect
-      targetRotationY.value = -normalizedPosition * 0.6; // Reduced rotation strength for subtler effect
-
-      // Debug info
-      console.log(
-        `Hovering card ${index}, normalized pos: ${normalizedPosition}, rotation: ${targetRotationY.value}`
-      );
     } else {
       // Still show hover state for played cards, but more subtle
       isHovered.value = true;
@@ -46,12 +45,18 @@ export function useCardInteraction(
     isHovered.value = false;
     document.body.style.cursor = "default";
     targetHoverY.value = 0; // Target rest height
-    targetRotationY.value = 0; // Reset rotation
   }
 
   // Setup card animations
   function setupCardAnimations() {
     nextTick(() => {
+      // Store stop function to clean up animation loop
+      const { onLoop } = useRenderLoop();
+      stopAnimationLoop = () => {
+        // Nothing to do here for now - TresJS doesn't provide a stop method
+        // This is a placeholder for future cleanup if the API changes
+      };
+
       onLoop(({ elapsed, delta }) => {
         if (!cardRef.value) return;
 
@@ -84,24 +89,16 @@ export function useCardInteraction(
           hoverY.value += (targetHoverY.value + floatEffect - hoverY.value) * hoverTransitionSpeed;
 
           if (isHovered.value) {
-            // Emphasized hover effect for available cards
+            // Emphasized hover effect for available cards - only animate Z position
             cardRef.value.position.z = Math.sin(elapsed * 0.5) * 0.05 + 0.3;
+
+            // Subtle wobble only on Z axis - won't conflict with Group rotation
             cardRef.value.rotation.z = Math.sin(elapsed * 2) * 0.03;
-
-            // When hovered, card straightens and faces player more directly
-            // -0.15 is the base upward tilt from useCardPositioning
-            cardRef.value.rotation.x = -0.3; // More dramatic upward tilt on hover
-
-            // SMOOTHER TRANSITION: Interpolate toward target rotation for more natural feel
-            // Use faster interpolation speed (0.3) for more responsive rotation
-            cardRef.value.rotation.y += (targetRotationY.value - cardRef.value.rotation.y) * 0.3;
           } else {
             // Return to base position
             cardRef.value.position.z += (0 - cardRef.value.position.z) * 0.1;
 
-            // IMPORTANT: Return to the exact upward tilt value defined in useCardPositioning
-            cardRef.value.rotation.x += (-0.15 - cardRef.value.rotation.x) * 0.1;
-            cardRef.value.rotation.y += (0 - cardRef.value.rotation.y) * 0.1;
+            // Only reset Z rotation - X and Y are handled by the TresGroup
             cardRef.value.rotation.z += (0 - cardRef.value.rotation.z) * 0.1;
           }
         }
@@ -111,11 +108,19 @@ export function useCardInteraction(
 
   onMounted(setupCardAnimations);
 
+  // Properly clean up animation loop to prevent memory leaks
+  onBeforeUnmount(() => {
+    if (stopAnimationLoop) {
+      stopAnimationLoop();
+    }
+  });
+
   return {
     cardRef,
     hoverY,
     isHovered,
     onPointerEnter,
     onPointerLeave,
+    normalizedPosition, // Expose for other components that might need it
   };
 }
