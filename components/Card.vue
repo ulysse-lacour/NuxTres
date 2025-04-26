@@ -16,10 +16,11 @@
       <TresBoxGeometry :args="[2.1, 3.1, 0.05]" />
       <TresMeshStandardMaterial color="white" :metalness="0.6" :roughness="0.3" />
 
-      <!-- Card face -->
+      <!-- Card face with text texture -->
       <TresMesh :position="[0, 0, 0.06]">
         <TresBoxGeometry :args="[2, 3, 0.1]" />
         <TresMeshStandardMaterial
+          :map="cardTexture"
           :color="color"
           :metalness="isPlayed ? 0.6 : isHovered ? 0.5 : 0.3"
           :roughness="isPlayed ? 0.2 : isHovered ? 0.4 : 0.6"
@@ -27,20 +28,6 @@
           :emissiveIntensity="isHovered ? 0.2 : 0.05"
         />
       </TresMesh>
-
-      <!-- Card Text using Suspense for async loading -->
-      <TresGroup :position="[0, 0, 0.2]">
-        <Suspense>
-          <Text3D
-            :text="name"
-            font="https://raw.githubusercontent.com/Tresjs/assets/main/fonts/FiraCodeRegular.json"
-            :size="0.25"
-            :height="0.08"
-            center
-            :color="textColor"
-          />
-        </Suspense>
-      </TresGroup>
 
       <!-- Spotlight for hover effect - only enabled when needed -->
       <TresSpotLight
@@ -67,8 +54,8 @@
 </template>
 
 <script setup lang="ts">
-  import { Text3D } from "@tresjs/cientos";
-  import { computed, onMounted } from "vue";
+  import { CanvasTexture } from "three";
+  import { computed, onMounted, ref, watch } from "vue";
   import type { Mesh } from "three";
 
   import { useCardInteraction } from "../composables/useCardInteraction";
@@ -118,11 +105,6 @@
     // Get base rotation from props
     const baseRotation = props.rotation || [0, 0, 0];
 
-    // When hovered:
-    // 1. Tilt up more dramatically (X axis)
-    // 2. Rotate toward center (Y axis) - negative normalized position creates center-facing effect
-    //    - Left cards (negative normalized position) get positive Y rotation (turn right)
-    //    - Right cards (positive normalized position) get negative Y rotation (turn left)
     return [
       -0.3, // More upward tilt
       -normalizedPosition * 0.5, // Rotate toward center
@@ -130,17 +112,102 @@
     ];
   });
 
-  // Set render order for proper z-ordering when mounted
-  onMounted(() => {
-    if (cardRef.value && props.renderOrder !== undefined) {
-      // Set the renderOrder property on the Three.js mesh
-      // This ensures cards render in the correct order (higher renderOrder renders on top)
-      cardRef.value.renderOrder = props.renderOrder;
-    }
-  });
-
   // Get appropriate text color based on card color
   const textColor = useTextColor(() => props.color);
+
+  // Create canvas texture for card with text
+  const cardTexture = ref<CanvasTexture | null>(null);
+
+  /**
+   * Create a texture with the card name rendered as 2D text
+   */
+  function createCardTexture() {
+    // Create a canvas element
+    const canvas = document.createElement("canvas");
+    canvas.width = 512;
+    canvas.height = 768;
+
+    // Get 2D context for drawing
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+
+    try {
+      // Fill with card color
+      context.fillStyle = props.color;
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Add a subtle gradient overlay
+      const gradient = context.createLinearGradient(0, 0, 0, canvas.height);
+      gradient.addColorStop(0, "rgba(255, 255, 255, 0.3)");
+      gradient.addColorStop(0.5, "rgba(255, 255, 255, 0)");
+      gradient.addColorStop(1, "rgba(0, 0, 0, 0.2)");
+      context.fillStyle = gradient;
+      context.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw decorative border
+      context.strokeStyle = "rgba(255, 255, 255, 0.4)";
+      context.lineWidth = 10;
+      context.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+      // Add inner border for depth
+      context.strokeStyle = "rgba(0, 0, 0, 0.2)";
+      context.lineWidth = 4;
+      context.strokeRect(26, 26, canvas.width - 52, canvas.height - 52);
+
+      // Calculate appropriate font size based on text length
+      const fontSize = Math.min(120, 500 / Math.max(1, props.name.length));
+      context.font = `bold ${fontSize}px Arial, sans-serif`;
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+
+      // Add text shadow for better visibility
+      context.shadowColor = "rgba(0, 0, 0, 0.6)";
+      context.shadowBlur = 12;
+      context.shadowOffsetX = 2;
+      context.shadowOffsetY = 2;
+
+      // Draw card text
+      context.fillStyle = textColor.value || "#ffffff";
+      context.fillText(props.name, canvas.width / 2, canvas.height / 2);
+
+      // Create Three.js texture from canvas
+      const texture = new CanvasTexture(canvas);
+      texture.needsUpdate = true;
+
+      return texture;
+    } catch (error) {
+      console.error("Error creating card texture:", error);
+      return null;
+    }
+  }
+
+  // Initialize texture right away to avoid undefined issues
+  cardTexture.value = createCardTexture();
+
+  // Update texture when card name or color changes
+  watch(
+    () => [props.name, props.color, textColor.value],
+    () => {
+      if (typeof window !== "undefined") {
+        // Make sure we're in browser environment
+        cardTexture.value = createCardTexture();
+      }
+    },
+    { immediate: false }
+  );
+
+  // Set render order and initialize texture
+  onMounted(() => {
+    // Set proper render order
+    if (cardRef.value && props.renderOrder !== undefined) {
+      cardRef.value.renderOrder = props.renderOrder;
+    }
+
+    // Create the texture on mount if not already done
+    if (!cardTexture.value) {
+      cardTexture.value = createCardTexture();
+    }
+  });
 
   /**
    * Handle card click events

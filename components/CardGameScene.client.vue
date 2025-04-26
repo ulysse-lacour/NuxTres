@@ -52,7 +52,7 @@
         :index="index"
         :total-cards="cardGameStore.availableCards.length"
         @card-clicked="handleCardClick"
-        :render-order="cardGameStore.availableCards.length - index"
+        :render-order="calculateRenderOrder(index, cardGameStore.availableCards.length)"
       />
     </TresGroup>
   </TresCanvas>
@@ -138,4 +138,24 @@
       window.removeEventListener("resize", handleResize);
     });
   });
+
+  /**
+   * Calculate render order for cards to create a natural hand-like stacking effect
+   * Cards at the edges should render on top of cards in the middle
+   *
+   * @param index - Card index
+   * @param totalCards - Total number of cards
+   * @returns Render order (higher values render on top)
+   */
+  function calculateRenderOrder(index: number, totalCards: number): number {
+    // Find center index
+    const centerIndex = (totalCards - 1) / 2;
+
+    // Calculate distance from center (0 = center, higher values = closer to edges)
+    const distanceFromCenter = Math.abs(index - centerIndex);
+
+    // Convert to a render order where higher values (edges) render on top
+    // Scale to a high base value (1000) to ensure proper stacking
+    return 1000 + Math.floor(distanceFromCenter * 10);
+  }
 </script>

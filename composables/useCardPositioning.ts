@@ -89,8 +89,14 @@ export function useCardPositioning(viewportWidth: Ref<number>, minCardSpacing: n
     // Y position (flat)
     const y = 0;
 
-    // Z-stacking (cards to the left appear on top)
-    const z = -index * 0.01;
+    // Z-stacking with natural hand-like effect
+    // Calculate normalized position from center (0 = center, 1 = edge)
+    const centerIndex = (totalCards - 1) / 2;
+    const distanceFromCenter = Math.abs(index - centerIndex) / centerIndex;
+
+    // Z value is highest (closest to 0) for cards on edges
+    // Middle cards have lowest z-value (furthest back)
+    const z = -0.05 + distanceFromCenter * 0.05;
 
     return [x, y, z];
   }
