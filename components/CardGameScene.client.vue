@@ -32,9 +32,12 @@
         :name="card.name"
         :card-id="card.id"
         :is-played="true"
-        :scale="[0.9, 0.9, 0.9]"
+        :scale="wallCardScale"
         :index="index"
         :total-cards="cardGameStore.playedCards.length"
+        :render-order="
+          renderOrderSystem.calculateWallRenderOrder(index, cardGameStore.playedCards.length)
+        "
       />
     </TresGroup>
 
@@ -52,7 +55,9 @@
         :index="index"
         :total-cards="cardGameStore.availableCards.length"
         @card-clicked="handleCardClick"
-        :render-order="calculateRenderOrder(index, cardGameStore.availableCards.length)"
+        :render-order="
+          renderOrderSystem.calculateHandRenderOrder(index, cardGameStore.availableCards.length)
+        "
       />
     </TresGroup>
   </TresCanvas>
@@ -64,7 +69,9 @@
 
   import { useCardGame } from "../composables/useCardGame";
   import { useCardPositioning } from "../composables/useCardPositioning";
+  import { useRenderOrder } from "../composables/useRenderOrder";
   import { useViewport } from "../composables/useViewport";
+  import { useWallLayout } from "../composables/useWallLayout";
 
   /**
    * WebGL rendering configuration
@@ -94,68 +101,40 @@
   // Card positioning system
   const { getCardPosition, getCardRotation } = useCardPositioning(viewportWidth);
 
-  /**
-   * Calculate position for a card on the wall display
-   * Organizes cards in a grid pattern
-   *
-   * @param index - Card index
-   * @param totalCards - Total cards on wall
-   * @returns [x, y, z] position coordinates
-   */
-  function getWallPosition(index: number, totalCards: number): [number, number, number] {
-    if (totalCards === 0) return [0, 0, 0];
+  // Wall layout positioning
+  const { getWallPosition, wallCardScale } = useWallLayout(viewportWidth);
 
-    // Maximum cards per row for grid layout
-    const cardsPerRow = 4;
-
-    // Calculate grid position
-    const row = Math.floor(index / cardsPerRow);
-    const col = index % cardsPerRow;
-
-    // Position in grid with proper spacing
-    const x = (col - (cardsPerRow - 1) / 2) * 3;
-    const y = -row * 3.5;
-    const z = 0;
-
-    return [x, y, z];
-  }
+  // Render order system for proper card stacking
+  const renderOrderSystem = useRenderOrder();
 
   // Setup and event handling
   onMounted(() => {
     // Initial viewport calculation
     updateViewportSize();
 
-    // Setup responsive behavior
+    // Setup responsive behavior with debounced resizing
+    let resizeTimeout: number | null = null;
+
     const handleResize = () => {
-      updateViewportSize();
-      console.log("Viewport updated:", viewportWidth.value);
+      if (resizeTimeout) {
+        window.clearTimeout(resizeTimeout);
+      }
+
+      resizeTimeout = window.setTimeout(() => {
+        updateViewportSize();
+        console.log("Viewport updated:", viewportWidth.value);
+        resizeTimeout = null;
+      }, 100); // 100ms debounce
     };
 
     window.addEventListener("resize", handleResize);
 
     // Cleanup function to be called on unmount
     onBeforeUnmount(() => {
+      if (resizeTimeout) {
+        window.clearTimeout(resizeTimeout);
+      }
       window.removeEventListener("resize", handleResize);
     });
   });
-
-  /**
-   * Calculate render order for cards to create a natural hand-like stacking effect
-   * Cards at the edges should render on top of cards in the middle
-   *
-   * @param index - Card index
-   * @param totalCards - Total number of cards
-   * @returns Render order (higher values render on top)
-   */
-  function calculateRenderOrder(index: number, totalCards: number): number {
-    // Find center index
-    const centerIndex = (totalCards - 1) / 2;
-
-    // Calculate distance from center (0 = center, higher values = closer to edges)
-    const distanceFromCenter = Math.abs(index - centerIndex);
-
-    // Convert to a render order where higher values (edges) render on top
-    // Scale to a high base value (1000) to ensure proper stacking
-    return 1000 + Math.floor(distanceFromCenter * 10);
-  }
 </script>
