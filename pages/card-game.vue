@@ -7,25 +7,26 @@
 
     <!-- 3D Scene container with game state overlays -->
     <div class="scene-container">
-      <!-- End game overlay - only shown when no cards are left -->
-      <div v-if="cardGameStore.availableCards.length === 0" class="no-cards-overlay">
-        <p>No cards left to play!</p>
-        <button class="reset-button" @click="resetGame">Play Again</button>
-      </div>
-
       <!-- Lazy-load 3D scene for better performance -->
       <client-only>
         <CardGameScene />
       </client-only>
 
-      <!-- Game instructions panel - uncomment to enable -->
-      <!-- <div class="instructions-panel">
-        <h3>How to Play</h3>
-        <p>Click on cards in your hand to place them on the wall.</p>
-        <p>
-          <strong>Cards played: {{ cardGameStore.playedCards.length }} / {{ cardGameStore.cards.length }}</strong>
-        </p>
-      </div> -->
+      <!-- Game instructions panel -->
+      <div class="instructions-panel">
+        <h3>Card Game</h3>
+        <p>Click on cards to play them to the wall.</p>
+        <div class="game-stats">
+          <div class="stat">
+            <span class="label">Available Cards:</span>
+            <span class="value">{{ cardGameStore.cards.length }}</span>
+          </div>
+          <div class="stat">
+            <span class="label">Played Cards:</span>
+            <span class="value">{{ cardGameStore.playedCards.length }}</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -112,62 +113,63 @@
       position: relative;
       overflow: hidden;
 
-      // Game completion overlay
-      .no-cards-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-        background-color: rgba(0, 0, 0, 0.7);
-        z-index: 20;
-        color: white;
-        text-align: center;
-        backdrop-filter: blur(5px);
-
-        p {
-          font-size: 2rem;
-          margin-bottom: 1.5rem;
-          text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
-        }
-      }
-
-      // Optional instructions panel
+      // Game instructions panel
       .instructions-panel {
         position: absolute;
         bottom: 20px;
         right: 20px;
-        padding: 15px;
-        background-color: rgba(0, 0, 0, 0.6);
+        padding: 18px;
+        background-color: rgba(0, 0, 0, 0.7);
         color: white;
-        border-radius: 8px;
+        border-radius: 10px;
         max-width: 300px;
         z-index: 10;
-        backdrop-filter: blur(5px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.4);
+        transition: all 0.3s ease;
 
         h3 {
           margin-top: 0;
+          margin-bottom: 10px;
           color: #3498db;
+          font-size: 1.2rem;
+          letter-spacing: 0.5px;
         }
 
         p {
-          margin: 8px 0;
+          margin: 8px 0 15px;
+          font-size: 0.95rem;
+          line-height: 1.4;
+          opacity: 0.9;
+        }
+
+        .game-stats {
+          margin-top: 15px;
+
+          .stat {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            align-items: center;
+
+            .label {
+              font-weight: 500;
+              color: #ccc;
+            }
+
+            .value {
+              font-weight: bold;
+              color: white;
+              background: rgba(52, 152, 219, 0.2);
+              padding: 2px 8px;
+              border-radius: 10px;
+              min-width: 24px;
+              text-align: center;
+            }
+          }
         }
       }
-    }
-
-    .instructions {
-      text-align: center;
-      font-size: 1.1rem;
-      color: #555;
-      padding: 0.5rem;
-      margin: 0;
     }
   }
 </style>

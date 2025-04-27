@@ -30,32 +30,7 @@ export function useRenderOrder() {
     return 1000 + Math.floor(normalizedDistance * 100);
   }
 
-  /**
-   * Calculate render order for cards in a wall/grid layout
-   * Cards placed later (higher index) should render on top
-   *
-   * @param index - Card index
-   * @param totalCards - Total number of cards
-   * @returns Render order (higher values render on top)
-   */
-  function calculateWallRenderOrder(index: number, totalCards: number): number {
-    // Simple index-based ordering where higher index = higher render order
-    return 1000 + index;
-  }
-
-  /**
-   * Calculate render order for stacked cards
-   *
-   * @param index - Card index in stack (0 = bottom)
-   * @returns Render order (higher values render on top)
-   */
-  function calculateStackRenderOrder(index: number): number {
-    return 1000 + index;
-  }
-
   return {
     calculateHandRenderOrder,
-    calculateWallRenderOrder,
-    calculateStackRenderOrder,
   };
 }

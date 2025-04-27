@@ -1,27 +1,21 @@
 import { useRenderLoop } from "@tresjs/core";
 import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
 import type { Mesh } from "three";
-import type { Ref } from "vue";
 
 /**
  * Composable to handle card interaction behaviors including hover effects and animations
  *
- * @param isPlayed - Whether this card has been played to the wall
- * @param index - Card index in its collection (available or played)
+ * @param index - Card index in its collection
  * @param totalCards - Total number of cards in the collection
  * @returns Card interaction properties and methods
  */
-export function useCardInteraction(
-  isPlayed: boolean = false,
-  index: number = 0,
-  totalCards: number = 1
-) {
+export function useCardInteraction(index: number = 0, totalCards: number = 1) {
   // Use shallowRef for three.js objects to avoid deep reactivity overhead
   const cardRef = shallowRef<Mesh | null>(null);
   const hoverY = ref(0);
   const isHovered = ref(false);
   const targetHoverY = ref(0);
-  const hoverTransitionSpeed = isPlayed ? 0.05 : 0.15; // Slower for played cards
+  const hoverTransitionSpeed = 0.15;
 
   // Calculate normalized position for positioning (-1 to 1 range)
   const normalizedPosition = totalCards <= 1 ? 0 : (index / (totalCards - 1)) * 2 - 1;
@@ -30,15 +24,9 @@ export function useCardInteraction(
   let stopAnimationLoop: (() => void) | null = null;
 
   function onPointerEnter() {
-    if (!isPlayed) {
-      isHovered.value = true;
-      document.body.style.cursor = "pointer";
-      targetHoverY.value = 0.6; // Higher hover for hand layout
-    } else {
-      // Still show hover state for played cards, but more subtle
-      isHovered.value = true;
-      document.body.style.cursor = "default"; // No pointer for played cards
-    }
+    isHovered.value = true;
+    document.body.style.cursor = "pointer";
+    targetHoverY.value = 0.6;
   }
 
   function onPointerLeave() {
@@ -60,47 +48,25 @@ export function useCardInteraction(
       onLoop(({ elapsed, delta }) => {
         if (!cardRef.value) return;
 
-        // Different animations for played vs available cards
-        if (isPlayed) {
-          // Played cards on the wall - gentle floating and rotation
-          const floatAmount = 0.1;
-          cardRef.value.position.y = Math.sin(elapsed * 0.3) * floatAmount;
+        // Subtle floating base effect
+        const baseFloatAmount = 0.02;
+        const floatEffect = Math.sin(elapsed * 0.2) * baseFloatAmount;
 
-          // Gentle rotation for played cards
-          cardRef.value.rotation.y = Math.sin(elapsed * 0.2) * 0.05;
+        // Smooth hover transition
+        hoverY.value += (targetHoverY.value + floatEffect - hoverY.value) * hoverTransitionSpeed;
 
-          // Slight tilt when hovered
-          if (isHovered.value) {
-            cardRef.value.rotation.z = Math.sin(elapsed * 0.5) * 0.02;
-            cardRef.value.position.z = 0.1; // Come forward slightly
-          } else {
-            // Return to normal
-            cardRef.value.rotation.z += (0 - cardRef.value.rotation.z) * 0.05;
-            cardRef.value.position.z += (0 - cardRef.value.position.z) * 0.05;
-          }
+        if (isHovered.value) {
+          // Emphasized hover effect - only animate Z position
+          cardRef.value.position.z = Math.sin(elapsed * 0.5) * 0.05 + 0.3;
+
+          // Subtle wobble only on Z axis - won't conflict with Group rotation
+          cardRef.value.rotation.z = Math.sin(elapsed * 2) * 0.03;
         } else {
-          // Available cards in hand - dynamic animations
+          // Return to base position
+          cardRef.value.position.z += (0 - cardRef.value.position.z) * 0.1;
 
-          // Subtle floating base effect
-          const baseFloatAmount = 0.02;
-          const floatEffect = Math.sin(elapsed * 0.2) * baseFloatAmount;
-
-          // Smooth hover transition
-          hoverY.value += (targetHoverY.value + floatEffect - hoverY.value) * hoverTransitionSpeed;
-
-          if (isHovered.value) {
-            // Emphasized hover effect for available cards - only animate Z position
-            cardRef.value.position.z = Math.sin(elapsed * 0.5) * 0.05 + 0.3;
-
-            // Subtle wobble only on Z axis - won't conflict with Group rotation
-            cardRef.value.rotation.z = Math.sin(elapsed * 2) * 0.03;
-          } else {
-            // Return to base position
-            cardRef.value.position.z += (0 - cardRef.value.position.z) * 0.1;
-
-            // Only reset Z rotation - X and Y are handled by the TresGroup
-            cardRef.value.rotation.z += (0 - cardRef.value.rotation.z) * 0.1;
-          }
+          // Only reset Z rotation - X and Y are handled by the TresGroup
+          cardRef.value.rotation.z += (0 - cardRef.value.rotation.z) * 0.1;
         }
       });
     });

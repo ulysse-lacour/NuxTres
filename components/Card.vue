@@ -1,20 +1,26 @@
 <template>
   <TresGroup
+    ref="groupRef"
     :position="position"
     :scale="scale || [1, 1, 1]"
-    :rotation="isHovered && !isPlayed ? hoverRotation : rotation || [0, 0, 0]"
+    :rotation="isHovered && animationState === 'idle' ? hoverRotation : rotation || [0, 0, 0]"
   >
     <TresMesh
       ref="cardRef"
-      :position="[0, isPlayed ? 0 : hoverY, isHovered ? 0.2 : 0]"
+      :position="[0, hoverY, isHovered && animationState === 'idle' ? 0.3 : 0]"
+      @pointer-enter="handlePointerEnter"
+      @pointer-leave="handlePointerLeave"
       @click="handleClick"
-      @pointer-enter="onPointerEnter"
-      @pointer-leave="onPointerLeave"
       :render-order="renderOrder"
     >
       <!-- Card base with thinner border for better visibility -->
       <TresBoxGeometry :args="[2.1, 3.1, 0.05]" />
-      <TresMeshStandardMaterial color="white" :metalness="0.6" :roughness="0.3" />
+      <TresMeshStandardMaterial
+        :color="animationState === 'playing' ? '#ff0000' : 'white'"
+        :metalness="0.6"
+        :roughness="0.3"
+        :shadow="true"
+      />
 
       <!-- Card face with text texture -->
       <TresMesh :position="[0, 0, 0.06]">
@@ -22,79 +28,110 @@
         <TresMeshStandardMaterial
           :map="cardTexture"
           :color="color"
-          :metalness="isPlayed ? 0.6 : isHovered ? 0.5 : 0.3"
-          :roughness="isPlayed ? 0.2 : isHovered ? 0.4 : 0.6"
-          :emissive="color"
-          :emissiveIntensity="isHovered ? 0.2 : 0.05"
+          :metalness="isHovered ? 0.5 : 0.3"
+          :roughness="isHovered ? 0.4 : 0.6"
+          :emissive="animationState === 'playing' ? color : '#000000'"
+          :emissiveIntensity="animationState === 'playing' ? 2 : 0"
         />
       </TresMesh>
-
-      <!-- Spotlight for hover effect - only enabled when needed -->
-      <TresSpotLight
-        v-if="isHovered && !isPlayed"
-        :intensity="3"
-        :position="[0, 2, 1]"
-        :angle="0.5"
-        :penumbra="0.7"
-        :color="color"
-        :distance="8"
-        :decay="1.5"
-      />
-
-      <!-- Subtle glow for played cards -->
-      <TresPointLight
-        v-if="isPlayed"
-        :intensity="1"
-        :position="[0, 0, 0.7]"
-        :distance="4"
-        :color="color"
-      />
     </TresMesh>
   </TresGroup>
 </template>
 
 <script setup lang="ts">
-  import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-  import type { Mesh } from "three";
-
-  import { useCardInteraction } from "../composables/useCardInteraction";
-  import { useCardTexture } from "../composables/useCardTexture";
-  import { useTextColor } from "../composables/useTextColor";
+  import { useCardAnimation } from "@/composables/useCardAnimation";
+  import { useCardInteraction } from "@/composables/useCardInteraction";
+  import { useCardTexture } from "@/composables/useCardTexture";
+  import { useTextColor } from "@/composables/useTextColor";
+  import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
+  import type { Group } from "three";
+  import type { Ref } from "vue";
 
   /**
    * Card component props
    */
-  const props = defineProps<{
-    position: [number, number, number];
-    color: string;
-    name: string;
-    cardId?: number;
-    isPlayed?: boolean;
-    scale?: [number, number, number];
-    rotation?: [number, number, number];
-    index?: number;
-    totalCards?: number;
-    renderOrder?: number;
+  const props = withDefaults(
+    defineProps<{
+      position: [number, number, number];
+      color: string;
+      name: string;
+      cardId: number;
+      scale?: [number, number, number];
+      rotation?: [number, number, number];
+      index?: number;
+      totalCards?: number;
+      renderOrder?: number;
+      readonly isPlayed?: boolean;
+      readonly animationDuration?: number;
+    }>(),
+    {
+      isPlayed: false,
+      animationDuration: 750,
+    }
+  );
+
+  // Define events
+  const emit = defineEmits<{
+    (e: "play", cardId: number): void;
   }>();
 
-  /**
-   * Card events
-   */
-  const emit = defineEmits<{
-    (e: "card-clicked", cardId: number): void;
-  }>();
+  // References for animation and interaction
+  const groupRef = ref<Group | null>(null);
+
+  // Get the wall position and card offset from parent component
+  const wallPosition = inject<[number, number, number]>("wallPosition", [0, 0, -5]);
+  const cardWallOffset = inject<Ref<[number, number, number]>>("cardWallOffset", ref([0, 0, 0]));
+
+  console.log("CARD: Injected positions:", {
+    wallPosition,
+    cardWallOffset,
+    cardWallOffsetValue: cardWallOffset.value,
+  });
+
+  // Use card animation composable
+  const {
+    animationState,
+    startAnimation,
+    checkStoredAnimation,
+    cleanup: cleanupAnimation,
+  } = useCardAnimation(groupRef, props.cardId, (cardId) => emit("play", cardId));
 
   // Use card interaction composable for hover effects
   const { cardRef, hoverY, isHovered, onPointerEnter, onPointerLeave } = useCardInteraction(
-    props.isPlayed,
     props.index || 0,
     props.totalCards || 1
   );
+
+  // Wrapper functions for hover events to check animation state
+  function handlePointerEnter() {
+    if (animationState.value === "idle") {
+      onPointerEnter();
+    }
+  }
+
+  function handlePointerLeave() {
+    if (animationState.value === "idle") {
+      onPointerLeave();
+    }
+  }
+
+  // Wrapper function for click event
+  function handleClick() {
+    if (animationState.value === "idle" && !props.isPlayed) {
+      // Start animation with current wall position and offset
+      startAnimation(wallPosition, cardWallOffset.value);
+    }
+  }
 
   /**
    * Calculate hover rotation - tilts up and rotates toward center when hovered
    */
   const hoverRotation = computed<[number, number, number]>(() => {
+    // Skip hover rotation during animation
+    if (animationState.value === "playing") {
+      return [0, 0, 0];
+    }
+
     // Calculate normalized position to determine rotation direction
     // -1 is far left, 0 is center, 1 is far right
     const normalizedPosition =
@@ -124,22 +161,22 @@
 
   // Set render order for proper z-ordering when mounted
   onMounted(() => {
+    console.log(`Card ${props.cardId} mounted`);
+
     if (cardRef.value && props.renderOrder !== undefined) {
       cardRef.value.renderOrder = props.renderOrder;
     }
+
+    // Check if this card has an ongoing animation from the store
+    checkStoredAnimation();
   });
 
   // Clean up resources when component is unmounted
   onBeforeUnmount(() => {
+    // Clean up animation resources
+    cleanupAnimation();
+
+    // Clean up texture resources
     disposeTexture();
   });
-
-  /**
-   * Handle card click events
-   */
-  function handleClick() {
-    if (props.cardId !== undefined && !props.isPlayed) {
-      emit("card-clicked", props.cardId);
-    }
-  }
 </script>
