@@ -1,0 +1,8 @@
+---
+description: DESCRIPTION TO DO
+alwaysApply: true
+---
+
+- Store GLSL shader files (vertex and fragment shaders) in a dedicated directory (e.g., `assets/shaders/`)
+- Use the `vite-plugin-glsl` plugin (already installed) to import these shaders directly into your JavaScript/Vue code
+- This allows you to write shaders in separate files with proper syntax highlighting

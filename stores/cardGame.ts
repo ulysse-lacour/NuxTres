@@ -25,6 +25,11 @@ export const useCardGameStore = defineStore("cardGame", () => {
     { id: 3, name: "Blue Card", color: "#3498db" },
     { id: 4, name: "Purple Card", color: "#9b59b6" },
     { id: 5, name: "Yellow Card", color: "#f1c40f" },
+    { id: 6, name: "Orange Card", color: "#e67e22" },
+    { id: 7, name: "Teal Card", color: "#1abc9c" },
+    { id: 8, name: "Pink Card", color: "#e84393" },
+    { id: 9, name: "Cyan Card", color: "#00cec9" },
+    { id: 10, name: "Lime Card", color: "#badc58" },
   ]);
 
   // Cards that have been played (store only IDs)
@@ -32,6 +37,9 @@ export const useCardGameStore = defineStore("cardGame", () => {
 
   // Animation states for cards
   const cardAnimations = ref<Record<number, CardAnimationState>>({});
+
+  // Reset counter to trigger reactive updates when game is reset
+  const resetCounter = ref(0);
 
   /**
    * Play a card
@@ -92,6 +100,8 @@ export const useCardGameStore = defineStore("cardGame", () => {
   function resetGame() {
     playedCardIds.value = [];
     cardAnimations.value = {};
+    resetCounter.value += 1;
+    console.log("Game reset, new reset counter:", resetCounter.value);
   }
 
   /**
@@ -119,6 +129,7 @@ export const useCardGameStore = defineStore("cardGame", () => {
     // Expose playedCardIds internally
     playedCardIds,
     cardAnimations,
+    resetCounter,
     playCard,
     resetGame,
     getCardById,

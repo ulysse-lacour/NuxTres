@@ -1,0 +1,9 @@
+---
+description: DESCRIPTION TO DO
+alwaysApply: true
+---
+
+- Use @tresjs/cientos library for common Three.js abstractions
+- Examples include OrbitControls, useGLTF, PerspectiveCamera, etc.
+- Import them with: `import { ComponentName } from '@tresjs/cientos';`
+- Utilize Cientos components to simplify Three.js implementation

@@ -1,0 +1,9 @@
+---
+description: DESCRIPTION TO DO
+alwaysApply: true
+---
+
+- Utilize Pinia for managing application state (e.g., game state, player data, UI settings)
+- Create Pinia stores in the `stores/` directory using the `useStoreName()` naming convention
+- Use these stores within your components to access and modify the application state
+- No need to import the store, it will be auto-imported

@@ -1,0 +1,8 @@
+---
+description: DESCRIPTION TO DO
+alwaysApply: true
+---
+
+- Place static assets (images, models, textures, etc.) in the `public/` directory
+- Reference these assets using absolute paths (e.g., `/images/my-texture.png`)
+- For assets loaded dynamically within Three.js, consider using the `useLoader` composable from `@tresjs/cientos` for optimized loading and caching

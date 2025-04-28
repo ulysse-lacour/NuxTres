@@ -1,0 +1,9 @@
+---
+description: DESCRIPTION TO DO
+alwaysApply: true
+---
+
+- Components with '.client.vue' extension are only rendered on the client side
+- Use this naming convention for all Three.js/TresJS components and scenes
+- Apply to components that rely on browser-specific APIs
+- This helps with proper SSR/SSG handling in Nuxt

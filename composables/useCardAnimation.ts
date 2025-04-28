@@ -1,7 +1,7 @@
 /**
  * Composable for card animations including easing functions and animation logic
  */
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import type { Group } from "three";
 import type { Ref } from "vue";
 
@@ -33,6 +33,39 @@ export function useCardAnimation(
   const isAnimationPlaying = computed(() => animationState.value !== "idle");
   const isClickable = computed(
     () => animationState.value === "idle" && Date.now() - lastClickTime > clickDebounceTime
+  );
+
+  /**
+   * Reset animation state when game is reset
+   */
+  function resetAnimationState() {
+    // Cancel any ongoing animation
+    if (animationId !== null) {
+      cancelAnimationFrame(animationId);
+      animationId = null;
+    }
+
+    // Reset animation state
+    animationState.value = "idle";
+    animationProgress.value = 0;
+
+    // Reset position and rotation if group exists
+    if (groupRef.value) {
+      const group = groupRef.value;
+
+      // Reset scale to original
+      group.scale.set(1, 1, 1);
+    }
+
+    console.log(`Card ${cardId} animation state reset`);
+  }
+
+  // Watch for game reset
+  watch(
+    () => cardGameStore.resetCounter,
+    () => {
+      resetAnimationState();
+    }
   );
 
   /**
@@ -268,5 +301,6 @@ export function useCardAnimation(
     startAnimation,
     checkStoredAnimation,
     cleanup,
+    resetAnimationState,
   };
 }

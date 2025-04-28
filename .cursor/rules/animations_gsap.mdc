@@ -1,0 +1,9 @@
+---
+description: DESCRIPTION TO DO
+alwaysApply: true
+---
+
+- Leverage GSAP (GreenSock Animation Platform) for creating complex animations
+- Import GSAP with `const { $gsap } = useNuxtApp();`
+- Use gsap functions like `$gsap.to()`, `$gsap.from()`, `$gsap.timeline()`
+- GSAP is powerful for animating Three.js objects, UI elements, or any other numeric property

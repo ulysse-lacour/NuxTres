@@ -1,0 +1,9 @@
+---
+description: DESCRIPTION TO DO
+alwaysApply: true
+---
+
+- Create composables in the `composables/` directory to encapsulate reusable logic
+- Use the `useComposableName()` naming convention
+- Import and use these composables within your components to keep them clean and maintainable
+- Examples include game input handling, calculations, and API calls

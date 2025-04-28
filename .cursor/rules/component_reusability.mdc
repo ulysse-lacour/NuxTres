@@ -1,0 +1,9 @@
+---
+description: DESCRIPTION TO DO
+alwaysApply: true
+---
+
+- Design components to be reusable and configurable
+- Use props to pass data into components
+- Emit events to communicate changes back to the parent component
+- This promotes modularity and maintainability

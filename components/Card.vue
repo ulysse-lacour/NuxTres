@@ -15,24 +15,12 @@
     >
       <!-- Card base with thinner border for better visibility -->
       <TresBoxGeometry :args="[2.1, 3.1, 0.05]" />
-      <TresMeshStandardMaterial
-        :color="animationState === 'playing' ? '#ff0000' : 'white'"
-        :metalness="0.6"
-        :roughness="0.3"
-        :shadow="true"
-      />
+      <TresMeshBasicMaterial color="white" />
 
       <!-- Card face with text texture -->
       <TresMesh :position="[0, 0, 0.06]">
         <TresBoxGeometry :args="[2, 3, 0.1]" />
-        <TresMeshStandardMaterial
-          :map="cardTexture"
-          :color="color"
-          :metalness="isHovered ? 0.5 : 0.3"
-          :roughness="isHovered ? 0.4 : 0.6"
-          :emissive="animationState === 'playing' ? color : '#000000'"
-          :emissiveIntensity="animationState === 'playing' ? 2 : 0"
-        />
+        <TresMeshBasicMaterial :map="cardTexture" :color="color" />
       </TresMesh>
     </TresMesh>
   </TresGroup>
@@ -42,8 +30,8 @@
   import { useCardAnimation } from "@/composables/useCardAnimation";
   import { useCardInteraction } from "@/composables/useCardInteraction";
   import { useCardTexture } from "@/composables/useCardTexture";
-  import { useTextColor } from "@/composables/useTextColor";
-  import { computed, inject, onBeforeUnmount, onMounted, ref } from "vue";
+  import { useCardGameStore } from "@/stores/cardGame";
+  import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from "vue";
   import type { Group } from "three";
   import type { Ref } from "vue";
 
@@ -82,6 +70,9 @@
   const wallPosition = inject<[number, number, number]>("wallPosition", [0, 0, -5]);
   const cardWallOffset = inject<Ref<[number, number, number]>>("cardWallOffset", ref([0, 0, 0]));
 
+  // Access the card game store directly for game reset monitoring
+  const cardGameStore = useCardGameStore();
+
   console.log("CARD: Injected positions:", {
     wallPosition,
     cardWallOffset,
@@ -93,13 +84,39 @@
     animationState,
     startAnimation,
     checkStoredAnimation,
+    resetAnimationState,
     cleanup: cleanupAnimation,
   } = useCardAnimation(groupRef, props.cardId, (cardId) => emit("play", cardId));
 
   // Use card interaction composable for hover effects
-  const { cardRef, hoverY, isHovered, onPointerEnter, onPointerLeave } = useCardInteraction(
-    props.index || 0,
-    props.totalCards || 1
+  const { cardRef, hoverY, isHovered, onPointerEnter, onPointerLeave, resetInteractionState } =
+    useCardInteraction(props.index || 0, props.totalCards || 1);
+
+  // Handle game reset
+  watch(
+    () => cardGameStore.resetCounter,
+    () => {
+      // Reset card physical properties if group exists and card isn't marked as played
+      if (groupRef.value && !props.isPlayed) {
+        const group = groupRef.value;
+
+        // Reset position to initial
+        group.position.set(props.position[0], props.position[1], props.position[2]);
+
+        // Reset rotation to initial
+        group.rotation.set(
+          props.rotation?.[0] || 0,
+          props.rotation?.[1] || 0,
+          props.rotation?.[2] || 0
+        );
+
+        // Reset scale to initial
+        const scale = props.scale || [1, 1, 1];
+        group.scale.set(scale[0], scale[1], scale[2]);
+
+        console.log(`Card ${props.cardId} position and rotation reset`);
+      }
+    }
   );
 
   // Wrapper functions for hover events to check animation state
@@ -149,12 +166,12 @@
     ];
   });
 
-  // Get appropriate text color based on card color
-  const textColor = useTextColor(() => props.color);
-
   // Convert props to refs for reactive usage in the texture composable
   const nameRef = computed(() => props.name);
   const colorRef = computed(() => props.color);
+
+  // Use black text color for all cards
+  const textColor = computed(() => "#000000");
 
   // Use the optimized card texture composable
   const { cardTexture, dispose: disposeTexture } = useCardTexture(nameRef, colorRef, textColor);

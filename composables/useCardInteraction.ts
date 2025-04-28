@@ -1,6 +1,8 @@
 import { useRenderLoop } from "@tresjs/core";
-import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from "vue";
 import type { Mesh } from "three";
+
+import { useCardGameStore } from "../stores/cardGame";
 
 /**
  * Composable to handle card interaction behaviors including hover effects and animations
@@ -16,6 +18,9 @@ export function useCardInteraction(index: number = 0, totalCards: number = 1) {
   const isHovered = ref(false);
   const targetHoverY = ref(0);
   const hoverTransitionSpeed = 0.15;
+
+  // Access the card game store
+  const cardGameStore = useCardGameStore();
 
   // Calculate normalized position for positioning (-1 to 1 range)
   const normalizedPosition = totalCards <= 1 ? 0 : (index / (totalCards - 1)) * 2 - 1;
@@ -34,6 +39,30 @@ export function useCardInteraction(index: number = 0, totalCards: number = 1) {
     document.body.style.cursor = "default";
     targetHoverY.value = 0; // Target rest height
   }
+
+  /**
+   * Reset interaction state
+   */
+  function resetInteractionState() {
+    isHovered.value = false;
+    targetHoverY.value = 0;
+    hoverY.value = 0;
+    document.body.style.cursor = "default";
+
+    // Reset mesh position and rotation if available
+    if (cardRef.value) {
+      cardRef.value.position.z = 0;
+      cardRef.value.rotation.z = 0;
+    }
+  }
+
+  // Watch for game reset
+  watch(
+    () => cardGameStore.resetCounter,
+    () => {
+      resetInteractionState();
+    }
+  );
 
   // Setup card animations
   function setupCardAnimations() {
@@ -87,6 +116,7 @@ export function useCardInteraction(index: number = 0, totalCards: number = 1) {
     isHovered,
     onPointerEnter,
     onPointerLeave,
+    resetInteractionState,
     normalizedPosition, // Expose for other components that might need it
   };
 }
