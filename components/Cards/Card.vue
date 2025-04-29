@@ -7,11 +7,11 @@
   >
     <TresMesh
       ref="cardRef"
-      :position="[0, hoverY, isHovered && animationState === 'idle' ? 0.3 : 0]"
+      :position="[0, hoverY, isHovered && animationState === 'idle' ? hoverZ : 0]"
+      :render-order="renderOrder"
       @pointer-enter="handlePointerEnter"
       @pointer-leave="handlePointerLeave"
       @click="handleClick"
-      :render-order="renderOrder"
     >
       <!-- Card base with thinner border for better visibility -->
       <TresBoxGeometry :args="[2.1, 3.1, 0.05]" />
@@ -30,8 +30,16 @@
   import { useCardAnimation } from "@/composables/useCardAnimation";
   import { useCardInteraction } from "@/composables/useCardInteraction";
   import { useCardTexture } from "@/composables/useCardTexture";
-  import { useCardGameStore } from "@/stores/cardGame";
-  import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from "vue";
+  import {
+    computed,
+    inject,
+    nextTick,
+    onActivated,
+    onBeforeUnmount,
+    onMounted,
+    ref,
+    watch,
+  } from "vue";
   import type { Group } from "three";
   import type { Ref } from "vue";
 
@@ -73,24 +81,19 @@
   // Access the card game store directly for game reset monitoring
   const cardGameStore = useCardGameStore();
 
-  console.log("CARD: Injected positions:", {
-    wallPosition,
-    cardWallOffset,
-    cardWallOffsetValue: cardWallOffset.value,
-  });
-
   // Use card animation composable
   const {
     animationState,
     startAnimation,
     checkStoredAnimation,
-    resetAnimationState,
     cleanup: cleanupAnimation,
   } = useCardAnimation(groupRef, props.cardId, (cardId) => emit("play", cardId));
 
   // Use card interaction composable for hover effects
-  const { cardRef, hoverY, isHovered, onPointerEnter, onPointerLeave, resetInteractionState } =
-    useCardInteraction(props.index || 0, props.totalCards || 1);
+  const { cardRef, hoverY, hoverZ, isHovered, onPointerEnter, onPointerLeave } = useCardInteraction(
+    props.index || 0,
+    props.totalCards || 1
+  );
 
   // Handle game reset
   watch(
@@ -113,8 +116,6 @@
         // Reset scale to initial
         const scale = props.scale || [1, 1, 1];
         group.scale.set(scale[0], scale[1], scale[2]);
-
-        console.log(`Card ${props.cardId} position and rotation reset`);
       }
     }
   );
@@ -122,7 +123,7 @@
   // Wrapper functions for hover events to check animation state
   function handlePointerEnter() {
     if (animationState.value === "idle") {
-      onPointerEnter();
+      onPointerEnter(cardRef.value);
     }
   }
 
@@ -160,8 +161,8 @@
     const baseRotation = props.rotation || [0, 0, 0];
 
     return [
-      -0.3, // More upward tilt
-      -normalizedPosition * 0.5, // Rotate toward center
+      -0.15, // More upward tilt
+      -normalizedPosition * 0.15, // Rotate toward center (reduced from 0.5)
       baseRotation[2], // Keep original Z rotation
     ];
   });
@@ -178,14 +179,43 @@
 
   // Set render order for proper z-ordering when mounted
   onMounted(() => {
-    console.log(`Card ${props.cardId} mounted`);
-
+    // Set render order if provided
     if (cardRef.value && props.renderOrder !== undefined) {
       cardRef.value.renderOrder = props.renderOrder;
     }
 
     // Check if this card has an ongoing animation from the store
-    checkStoredAnimation();
+    nextTick(() => {
+      checkStoredAnimation();
+    });
+  });
+
+  // Handle component reactivation when card page is loaded via client-side navigation
+  onActivated(() => {
+    // Ensure render order is set
+    if (cardRef.value && props.renderOrder !== undefined) {
+      cardRef.value.renderOrder = props.renderOrder;
+    }
+
+    // Re-apply proper position and rotation
+    if (groupRef.value && !props.isPlayed) {
+      const group = groupRef.value;
+
+      // Re-initialize position
+      group.position.set(props.position[0], props.position[1], props.position[2]);
+
+      // Re-initialize rotation
+      group.rotation.set(
+        props.rotation?.[0] || 0,
+        props.rotation?.[1] || 0,
+        props.rotation?.[2] || 0
+      );
+
+      // Update texture
+      nextTick(() => {
+        checkStoredAnimation();
+      });
+    }
   });
 
   // Clean up resources when component is unmounted

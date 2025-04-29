@@ -2,8 +2,8 @@
   <TresMesh
     ref="boxRef"
     @click="onBoxClick"
-    @pointer-enter="onPointerenter"
-    @pointer-leave="onPointerleave"
+    @pointer-enter="onPointerEnter"
+    @pointer-leave="onPointerLeave"
   >
     <TresBoxGeometry :args="[1.5, 1.5, 1.5]" />
     <TresMeshNormalMaterial />
@@ -53,11 +53,11 @@
     });
   }
 
-  function onPointerenter(): void {
+  function onPointerEnter(): void {
     document.body.style.cursor = "pointer";
   }
 
-  function onPointerleave(): void {
+  function onPointerLeave(): void {
     document.body.style.cursor = "default";
   }
 </script>

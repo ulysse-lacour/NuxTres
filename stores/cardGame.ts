@@ -1,22 +1,6 @@
 import { defineStore } from "pinia";
 import { computed, ref } from "vue";
 
-export type Card = {
-  id: number;
-  name: string;
-  color: string;
-};
-
-// Animation state type for persistence
-export type CardAnimationState = {
-  cardId: number;
-  startPosition: [number, number, number];
-  targetPosition: [number, number, number];
-  startTime: number;
-  animationDuration: number;
-  animationState: "idle" | "playing" | "completed";
-};
-
 export const useCardGameStore = defineStore("cardGame", () => {
   // Available cards
   const cards = ref<Card[]>([
@@ -41,6 +25,13 @@ export const useCardGameStore = defineStore("cardGame", () => {
   // Reset counter to trigger reactive updates when game is reset
   const resetCounter = ref(0);
 
+  // Card lookup map for faster access
+  const cardMap = computed(() => {
+    const map = new Map<number, Card>();
+    cards.value.forEach((card) => map.set(card.id, card));
+    return map;
+  });
+
   /**
    * Play a card
    * @param cardId The ID of the card to play
@@ -48,13 +39,11 @@ export const useCardGameStore = defineStore("cardGame", () => {
   function playCard(cardId: number) {
     // Don't add if already played
     if (playedCardIds.value.includes(cardId)) {
-      console.log(`Card ${cardId} already played`);
       return;
     }
 
     // Add to played cards
     playedCardIds.value.push(cardId);
-    console.log(`Card ${cardId} played, total played: ${playedCardIds.value.length}`);
   }
 
   /**
@@ -74,7 +63,6 @@ export const useCardGameStore = defineStore("cardGame", () => {
       animationDuration,
       animationState: "playing",
     };
-    console.log(`Animation registered for card ${cardId}`, startPosition, targetPosition);
   }
 
   /**
@@ -83,7 +71,6 @@ export const useCardGameStore = defineStore("cardGame", () => {
   function completeCardAnimation(cardId: number) {
     if (cardAnimations.value[cardId]) {
       cardAnimations.value[cardId].animationState = "completed";
-      console.log(`Animation completed for card ${cardId}`);
     }
   }
 
@@ -101,20 +88,20 @@ export const useCardGameStore = defineStore("cardGame", () => {
     playedCardIds.value = [];
     cardAnimations.value = {};
     resetCounter.value += 1;
-    console.log("Game reset, new reset counter:", resetCounter.value);
   }
 
   /**
    * Get a card by ID
    */
   function getCardById(cardId: number): Card | undefined {
-    return cards.value.find((card) => card.id === cardId);
+    return cardMap.value.get(cardId);
   }
 
   // Computed properties for the UI to use (compatible with previous store version)
   const availableCards = computed<Card[]>(() => {
     // Filter cards that haven't been played yet
-    return cards.value.filter((card) => !playedCardIds.value.includes(card.id));
+    const playedSet = new Set(playedCardIds.value);
+    return cards.value.filter((card) => !playedSet.has(card.id));
   });
 
   const playedCards = computed<Card[]>(() => {

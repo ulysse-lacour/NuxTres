@@ -1,5 +1,4 @@
-import { computed } from "vue";
-import type { Ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 
 /**
  * Composable for dynamic card positioning and sizing based on viewport
@@ -8,7 +7,39 @@ import type { Ref } from "vue";
  * @param minCardSpacing - Minimum spacing between cards
  * @returns Functions and values for positioning and sizing cards
  */
-export function useCardPositioning(viewportWidth: Ref<number>, minCardSpacing: number = 0.3) {
+export function useCardPositioning() {
+  const viewport = ref<{
+    width: number;
+    height: number;
+  }>({
+    width: 0,
+    height: 0,
+  });
+
+  // Force refresh trigger
+  const refreshTrigger = ref(0);
+
+  // Initialize viewport on mount and window resize
+  onMounted(() => {
+    updateViewport();
+    window.addEventListener("resize", updateViewport);
+  });
+
+  // Update viewport dimensions
+  const updateViewport = () => {
+    if (typeof window === "undefined") return;
+    viewport.value = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+  };
+
+  // Force recalculation of all card positions
+  const forceRefresh = () => {
+    updateViewport();
+    refreshTrigger.value++;
+  };
+
   /**
    * Dynamically calculate card dimensions based on viewport width
    */
@@ -18,7 +49,7 @@ export function useCardPositioning(viewportWidth: Ref<number>, minCardSpacing: n
     const baseHeight = 3.0;
 
     // Viewport-based scaling with min/max constraints
-    const scaleFactor = Math.min(Math.max(viewportWidth.value / 12, 0.5), 1.4);
+    const scaleFactor = Math.min(Math.max(viewport.value.width / 12, 0.5), 1.4);
 
     return {
       width: baseWidth * scaleFactor,
@@ -31,30 +62,35 @@ export function useCardPositioning(viewportWidth: Ref<number>, minCardSpacing: n
    */
   const cardPadding = computed(() => {
     // Scale padding with viewport but keep it small
-    return Math.min(viewportWidth.value * 0.015, 0.15);
+    return Math.min(viewport.value.width * 0.015, 0.15);
   });
 
   /**
-   * Calculate dynamic overlap factor based on total cards and viewport
+   * Calculate the overlap factor based on the number of cards
    */
-  const calculateOverlapFactor = computed(() => {
-    return (totalCards: number) => {
-      // Handle many cards with progressive overlap
-      if (totalCards >= 8) {
-        return 0.4 + (totalCards - 8) * 0.05; // Increase overlap for many cards
-      }
+  const calculateOverlapFactor = (cardCount: number, viewportWidth: number) => {
+    // Increase minimum overlap to ensure cards never pack too tightly
+    const minOverlap = 0.4;
 
-      // Minimal overlap for few cards
-      if (totalCards <= 3) return 0.1;
+    // Apply a more gradual scaling for card overlap
+    const maxOverlap = Math.min(0.85, 0.65 + (viewportWidth < 768 ? 0.2 : 0));
 
-      // Default overlap calculation
-      const baseOverlap = 0.3;
-      const viewportFactor = Math.max(8 / viewportWidth.value, 0.4);
-      const cardFactor = Math.min(totalCards / 4, 1.8);
+    // Adjust overlap calculation to be more stable across viewport sizes
+    let overlap: number;
 
-      return Math.min(baseOverlap * viewportFactor * cardFactor, 0.7);
-    };
-  });
+    if (cardCount <= 1) {
+      overlap = 0;
+    } else if (cardCount <= 3) {
+      overlap = 0.3;
+    } else if (cardCount <= 5) {
+      overlap = minOverlap + (cardCount - 3) * 0.05;
+    } else {
+      // More gradual increase for many cards
+      overlap = Math.min(maxOverlap, minOverlap + (cardCount - 5) * 0.025);
+    }
+
+    return overlap;
+  };
 
   /**
    * Calculate the position for a card based on its index and total cards
@@ -69,7 +105,7 @@ export function useCardPositioning(viewportWidth: Ref<number>, minCardSpacing: n
 
     const cardWidth = cardDimensions.value.width;
     const padding = cardPadding.value;
-    const overlapFactor = calculateOverlapFactor.value(totalCards);
+    const overlapFactor = calculateOverlapFactor(totalCards, viewport.value.width);
 
     // Adjust padding for many cards to prevent overflow
     const effectivePadding = totalCards > 6 ? padding * (6 / totalCards) : padding;
@@ -96,7 +132,7 @@ export function useCardPositioning(viewportWidth: Ref<number>, minCardSpacing: n
 
     // Z value is highest (closest to 0) for cards on edges
     // Middle cards have lowest z-value (furthest back)
-    const z = -0.05 + distanceFromCenter * 0.05;
+    const z = -0.08 + distanceFromCenter * 0.08;
 
     return [x, y, z];
   }
@@ -119,9 +155,13 @@ export function useCardPositioning(viewportWidth: Ref<number>, minCardSpacing: n
   }
 
   return {
-    getCardPosition,
-    getCardRotation,
+    viewport,
     cardDimensions,
     cardPadding,
+    calculateOverlapFactor,
+    getCardPosition,
+    getCardRotation,
+    forceRefresh,
+    refreshTrigger,
   };
 }

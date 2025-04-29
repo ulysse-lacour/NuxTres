@@ -2,6 +2,9 @@ import { CanvasTexture } from "three";
 import { computed, ref, watch } from "vue";
 import type { Ref } from "vue";
 
+// Global texture cache shared between instances
+const globalTextureCache = new Map<string, CanvasTexture>();
+
 /**
  * Composable for creating and managing card textures
  * Efficiently handles canvas generation and caching for better performance
@@ -16,10 +19,7 @@ export function useCardTexture(name: Ref<string>, color: Ref<string>, textColor:
   const cardTexture = ref<CanvasTexture | null>(null);
 
   // Track if we're in a browser environment
-  const isBrowser = ref(typeof window !== "undefined");
-
-  // Store previously created textures in a cache for reuse
-  const textureCache = new Map<string, CanvasTexture>();
+  const isBrowser = typeof window !== "undefined";
 
   // Create a cache key based on card properties
   const cacheKey = computed(() => `${name.value}-${color.value}-${textColor.value}`);
@@ -28,7 +28,7 @@ export function useCardTexture(name: Ref<string>, color: Ref<string>, textColor:
    * Create a canvas for the card texture with text and styling
    */
   function createCardCanvas(): HTMLCanvasElement | null {
-    if (!isBrowser.value) return null;
+    if (!isBrowser) return null;
 
     try {
       // Create a canvas element
@@ -89,9 +89,11 @@ export function useCardTexture(name: Ref<string>, color: Ref<string>, textColor:
    * Create or retrieve a texture from cache
    */
   function generateTexture(): CanvasTexture | null {
-    // Check if texture exists in cache
-    if (textureCache.has(cacheKey.value)) {
-      return textureCache.get(cacheKey.value) || null;
+    const key = cacheKey.value;
+
+    // Check if texture exists in global cache
+    if (globalTextureCache.has(key)) {
+      return globalTextureCache.get(key) || null;
     }
 
     // Create new canvas and texture
@@ -102,14 +104,14 @@ export function useCardTexture(name: Ref<string>, color: Ref<string>, textColor:
     const texture = new CanvasTexture(canvas);
     texture.needsUpdate = true;
 
-    // Store in cache
-    textureCache.set(cacheKey.value, texture);
+    // Store in global cache
+    globalTextureCache.set(key, texture);
 
     return texture;
   }
 
   // Generate texture initially if we're in a browser
-  if (isBrowser.value) {
+  if (isBrowser) {
     cardTexture.value = generateTexture();
   }
 
@@ -117,7 +119,7 @@ export function useCardTexture(name: Ref<string>, color: Ref<string>, textColor:
   watch(
     [name, color, textColor],
     () => {
-      if (isBrowser.value) {
+      if (isBrowser) {
         cardTexture.value = generateTexture();
       }
     },
@@ -128,15 +130,9 @@ export function useCardTexture(name: Ref<string>, color: Ref<string>, textColor:
    * Clean up texture resources when component is unmounted
    */
   function dispose() {
-    // Clear the current texture
-    if (cardTexture.value) {
-      cardTexture.value.dispose();
-      cardTexture.value = null;
-    }
-
-    // Clear cache to prevent memory leaks
-    textureCache.forEach((texture) => texture.dispose());
-    textureCache.clear();
+    // Just clear the reference, we don't dispose the actual texture
+    // since it might be used by other cards with the same properties
+    cardTexture.value = null;
   }
 
   return {

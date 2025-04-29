@@ -1,5 +1,4 @@
 import { onBeforeUnmount, onMounted, ref } from "vue";
-import type { Ref } from "vue";
 
 /**
  * Viewport calculation composable

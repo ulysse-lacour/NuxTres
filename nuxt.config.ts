@@ -18,6 +18,7 @@ export default defineNuxtConfig({
         },
       ],
     },
+    pageTransition: { name: "page", mode: "out-in" },
   },
 
   css: ["@/assets/css/index.scss"],
@@ -30,10 +31,13 @@ export default defineNuxtConfig({
       "@nuxtjs/google-fonts",
       {
         prefetch: true,
+        preconnect: true,
+        preload: true,
         download: true,
         families: {
           "Maven+Pro": [400, 500, 700],
         },
+        display: "swap",
       },
     ],
     [
@@ -51,6 +55,7 @@ export default defineNuxtConfig({
     {
       path: "@/components",
       pathPrefix: false,
+      global: true,
     },
   ],
 
@@ -100,5 +105,33 @@ export default defineNuxtConfig({
     preference: "system", // default value of $colorMode.preference
     fallback: "light", // fallback value if no system preference found
     storage: "localStorage",
+  },
+
+  // Performance optimizations
+  experimental: {
+    asyncContext: true,
+    payloadExtraction: true,
+    renderJsonPayloads: true,
+    typedPages: true,
+    headNext: true,
+    componentIslands: true,
+  },
+
+  // Cache optimization
+  vite: {
+    build: {
+      cssCodeSplit: true,
+      chunkSizeWarningLimit: 1000,
+    },
+    optimizeDeps: {
+      include: ["three", "@tresjs/core", "@tweakpane/core"],
+    },
+  },
+
+  nitro: {
+    prerender: {
+      crawlLinks: true,
+    },
+    compressPublicAssets: true,
   },
 });

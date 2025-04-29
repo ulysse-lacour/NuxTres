@@ -8,24 +8,10 @@
           rel="noopener"
           >TresJS</NuxtLink
         >
-        starter
       </h1>
-
-      <p class="subtitle">
-        by
-        <NuxtLink to="https://www.francescomichelini.com" target="_blank" rel="noopener"
-          >Francesco Michelini</NuxtLink
-        >
-      </p>
     </header>
 
-    <p style="opacity: 0.85">
-      Check out the
-      <a href="https://github.com/kekkorider/nuxt-tres-starter" target="_blank" rel="noopener"
-        >GitHub Repository</a
-      >.<br />
-      <strong>TIP</strong>: Click the box to animate it.
-    </p>
+    <p><strong>TIP</strong>: Click the box to animate it.</p>
   </div>
 </template>
 
@@ -43,7 +29,6 @@
     padding: 24px;
     border-radius: 12px;
     color: rgba(255, 255, 245, 0.86);
-    font-family: "Maven Pro", sans-serif;
     position: fixed;
     left: 30px;
     bottom: 30px;
@@ -55,13 +40,9 @@
   }
 
   .title {
-    font-size: 3rem;
+    font-size: 2rem;
     font-weight: 500;
     margin: 0;
-  }
-
-  .subtitle {
-    margin-top: -0.35em;
   }
 
   p {

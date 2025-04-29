@@ -2,15 +2,15 @@
   <div class="card-game">
     <div class="game-header">
       <h1>Card Game</h1>
-      <button class="reset-button" @click="resetGame">Reset Game</button>
+      <button class="reset-button" @click="cardGameStore.resetGame">Reset Game</button>
     </div>
 
     <!-- 3D Scene container with game state overlays -->
     <div class="scene-container">
-      <!-- Lazy-load 3D scene for better performance -->
-      <client-only>
+      <!-- 3D scene with explicit component import -->
+      <ClientOnly>
         <CardGameScene />
-      </client-only>
+      </ClientOnly>
 
       <!-- Game instructions panel -->
       <div class="instructions-panel">
@@ -19,7 +19,7 @@
         <div class="game-stats">
           <div class="stat">
             <span class="label">Available Cards:</span>
-            <span class="value">{{ cardGameStore.cards.length }}</span>
+            <span class="value">{{ cardGameStore.availableCards.length }}</span>
           </div>
           <div class="stat">
             <span class="label">Played Cards:</span>
@@ -32,15 +32,17 @@
 </template>
 
 <script setup lang="ts">
-  import { useCardGame } from "../composables/useCardGame";
+  import CardGameScene from "@/components/Cards/CardGameScene.client.vue";
+  import { useCardGameStore } from "@/stores/cardGame";
 
   // Set page metadata
   definePageMeta({
     layout: "default",
+    keepalive: true,
   });
 
-  // Initialize game state with card game composable
-  const { cardGameStore, resetGame } = useCardGame();
+  // Initialize game state directly with Pinia store
+  const cardGameStore = useCardGameStore();
 </script>
 
 <style lang="scss" scoped>

@@ -5,8 +5,6 @@ import { computed, ref, watch } from "vue";
 import type { Group } from "three";
 import type { Ref } from "vue";
 
-import { useCardGameStore } from "../stores/cardGame";
-
 export function useCardAnimation(
   groupRef: Ref<Group | null>,
   cardId: number,
@@ -25,6 +23,7 @@ export function useCardAnimation(
   // Click handler debounce
   let lastClickTime = 0;
   const clickDebounceTime = 500; // ms
+  const animationDuration = 800; // Animation duration in ms
 
   // Access the card game store
   const cardGameStore = useCardGameStore();
@@ -56,8 +55,6 @@ export function useCardAnimation(
       // Reset scale to original
       group.scale.set(1, 1, 1);
     }
-
-    console.log(`Card ${cardId} animation state reset`);
   }
 
   // Watch for game reset
@@ -78,7 +75,6 @@ export function useCardAnimation(
     wallOffset: [number, number, number]
   ) => {
     if (isAnimationPlaying.value) {
-      console.log("Animation already playing, ignoring");
       return;
     }
 
@@ -89,11 +85,8 @@ export function useCardAnimation(
 
     // Only allow if not already animating
     if (animationState.value !== "idle") {
-      console.log("Card is already animating, ignoring");
       return;
     }
-
-    console.log(`Card ${cardId} animating to wall`);
 
     // Store initial position
     startPosition = [
@@ -112,10 +105,6 @@ export function useCardAnimation(
       wallPosition[2] + wallOffset[2] + zOffset,
     ];
 
-    console.log("Animation target position:", targetPosition);
-    console.log("Wall position:", wallPosition);
-    console.log("Card wall offset:", wallOffset);
-
     // Start the animation
     animationState.value = "playing";
     animationProgress.value = 0;
@@ -126,7 +115,7 @@ export function useCardAnimation(
       cardId,
       [...startPosition],
       [...targetPosition],
-      800 // duration
+      animationDuration
     );
 
     // Begin animation loop
@@ -145,8 +134,7 @@ export function useCardAnimation(
 
     // Calculate progress
     const elapsed = timestamp - animationStartTime;
-    const duration = 800; // Animation duration in ms
-    animationProgress.value = Math.min(elapsed / duration, 1);
+    animationProgress.value = Math.min(elapsed / animationDuration, 1);
 
     // Apply easing
     const easedProgress = easeOutBack(animationProgress.value);
@@ -200,9 +188,6 @@ export function useCardAnimation(
         group.scale.set(0.7, 0.7, 0.7);
       }
 
-      console.log(`Card ${cardId} animation completed`);
-      console.log("Final position:", targetPosition);
-
       // Mark as complete in store
       cardGameStore.completeCardAnimation(cardId);
     }
@@ -214,8 +199,6 @@ export function useCardAnimation(
   const checkStoredAnimation = () => {
     const storedAnimation = cardGameStore.getCardAnimationState(cardId);
     if (storedAnimation && storedAnimation.animationState === "playing") {
-      console.log(`Card ${cardId} has an ongoing animation - restoring state`);
-
       // Restore animation state
       animationState.value = "playing";
 
@@ -238,54 +221,42 @@ export function useCardAnimation(
           // Mark as complete
           animationState.value = "completed";
           cardGameStore.completeCardAnimation(cardId);
-          console.log(`Card ${cardId} animation was nearly complete - jumped to final position`);
         } else {
           // Start the animation again for a smooth continuation
-          console.log(
-            `Card ${cardId} animation progress: ${Math.round(progress * 100)}% - continuing`
-          );
-
           if (animationId === null) {
             animationId = requestAnimationFrame(animateCard);
           }
-        }
-      } else {
-        // If group isn't ready yet, just start the animation
-        if (animationId === null) {
-          animationId = requestAnimationFrame(animateCard);
         }
       }
     }
   };
 
   /**
-   * Clean up animation resources
+   * Clean up resources and cancel animations
    */
   const cleanup = () => {
     if (animationId !== null) {
-      console.log(`Canceling animation for card ${cardId}`);
       cancelAnimationFrame(animationId);
       animationId = null;
     }
   };
 
-  // Math helper functions
   /**
-   * Linear interpolation between two values
+   * Linear interpolation helper
    */
   function lerp(a: number, b: number, t: number): number {
     return a + (b - a) * t;
   }
 
   /**
-   * Smooth easing function for animations
+   * Simple easeInOut easing function
    */
   function easeInOut(t: number): number {
-    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
   }
 
   /**
-   * Easing function with a slight bounce at the end
+   * EaseOutBack easing function with a slight overshoot
    */
   function easeOutBack(t: number): number {
     const c1 = 1.70158;
@@ -295,12 +266,11 @@ export function useCardAnimation(
 
   return {
     animationState,
-    animationProgress,
-    isAnimationPlaying,
-    isClickable,
     startAnimation,
     checkStoredAnimation,
-    cleanup,
     resetAnimationState,
+    cleanup,
+    isAnimationPlaying,
+    isClickable,
   };
 }

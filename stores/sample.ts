@@ -1,9 +1,5 @@
-interface State {
-  count: number;
-}
-
 export const useSampleStore = defineStore("sampleStore", {
-  state: (): State => ({
+  state: (): SampleState => ({
     count: 0,
   }),
 
@@ -14,12 +10,6 @@ export const useSampleStore = defineStore("sampleStore", {
 
     decrement(): void {
       this.count--;
-    },
-  },
-
-  getters: {
-    getCount(): number {
-      return this.count;
     },
   },
 });

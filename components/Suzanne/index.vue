@@ -1,5 +1,5 @@
 <template>
-  <TresMesh ref="componentRef" :material="material" :geometry="nodes.Suzanne.geometry" />
+  <TresMesh v-if="nodes?.Suzanne" :material="material" :geometry="nodes.Suzanne.geometry" />
 </template>
 
 <script setup lang="ts">
@@ -7,19 +7,16 @@
   import { useRenderLoop } from "@tresjs/core";
   import { ShaderMaterial } from "three";
 
-  // @ts-expect-error
+  // @ts-expect-error - GLSL shader imports are not recognized by TypeScript but handled by vite-plugin-glsl
   import fragmentShader from "./fragment.glsl";
-  // @ts-expect-error
+  // @ts-expect-error - GLSL shader imports are not recognized by TypeScript but handled by vite-plugin-glsl
   import vertexShader from "./vertex.glsl";
 
-  //
-  // Refs
-  //
   const { onLoop } = useRenderLoop();
   const { nodes } = await useGLTF("/suzanne.glb");
 
   // Dispose the default material
-  if (nodes.Suzanne.material) {
+  if (nodes?.Suzanne?.material) {
     nodes.Suzanne.material.dispose();
   }
 
@@ -31,14 +28,11 @@
     },
   });
 
-  //
-  // Lifecycle
-  //
-  onMounted(async () => {
-    await nextTick();
-
+  onMounted(() => {
     onLoop(({ elapsed }) => {
-      material.uniforms.u_Time.value = elapsed;
+      if (material?.uniforms?.u_Time) {
+        material.uniforms.u_Time.value = elapsed;
+      }
     });
   });
 </script>

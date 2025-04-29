@@ -10,7 +10,7 @@
     <TresDirectionalLight :position="[-10, -5, 5]" :intensity="0.6" color="#6b93d6" />
 
     <!-- Environment floor -->
-    <TresMesh :rotation="[-Math.PI / 2, 0, 0]" :position="[0, -6, 0]" receiveShadow>
+    <TresMesh :rotation="[-Math.PI / 2, 0, 0]" :position="[0, -6, 0]" receive-shadow>
       <TresPlaneGeometry :args="[50, 50]" />
       <TresMeshStandardMaterial color="#111827" />
     </TresMesh>
@@ -46,23 +46,16 @@
       <Card
         v-for="(card, index) in availableAndAnimatingCards"
         :key="`card-${card.id}`"
-        :position="
-          getCardPosition(getAvailableCardIndex(card.id), cardGameStore.availableCards.length)
-        "
-        :rotation="
-          getCardRotation(getAvailableCardIndex(card.id), cardGameStore.availableCards.length)
-        "
+        :position="getCardPosition(card, index)"
+        :rotation="getCardRotation(card, index)"
         :color="card.color"
         :name="card.name"
         :card-id="card.id"
         :scale="[0.85, 0.85, 0.85]"
-        :index="getAvailableCardIndex(card.id)"
-        :total-cards="cardGameStore.availableCards.length"
+        :index="index"
+        :total-cards="availableAndAnimatingCards.length"
         :render-order="
-          renderOrderSystem.calculateHandRenderOrder(
-            getAvailableCardIndex(card.id),
-            cardGameStore.availableCards.length
-          )
+          renderOrderSystem.calculateHandRenderOrder(index, availableAndAnimatingCards.length)
         "
       />
     </TresGroup>
@@ -70,23 +63,14 @@
 </template>
 
 <script setup lang="ts">
-  import { useCardGame } from "@/composables/useCardGame";
   import { useCardPositioning } from "@/composables/useCardPositioning";
+  import { useClientNavigation } from "@/composables/useClientNavigation";
   import { useRenderOrder } from "@/composables/useRenderOrder";
-  import { useViewport } from "@/composables/useViewport";
-  import { computed, onBeforeUnmount, onMounted, provide, reactive, ref } from "vue";
+  import { computed, nextTick, provide, reactive, ref, watch } from "vue";
   import type { Group, PerspectiveCamera } from "three";
 
-  /**
-   * WebGL rendering configuration
-   */
-  interface GL {
-    clearColor: string;
-    powerPreference: "high-performance" | "low-power" | "default";
-  }
-
-  // Game state and card handling
-  const { cardGameStore } = useCardGame();
+  // Game state and card handling - now directly using the store
+  const cardGameStore = useCardGameStore();
 
   // WebGL settings for optimal performance
   const gl = reactive<GL>({
@@ -109,13 +93,53 @@
   provide("wallPosition", wallPosition);
   provide("cardWallOffset", cardWallOffset);
 
-  console.log("CARD SCENE: Providing positions:", { wallPosition, cardWallOffset });
+  // Client navigation handling
+  const { isSceneReady } = useClientNavigation();
 
-  // Responsive viewport calculations
-  const { viewportWidth, updateViewportSize } = useViewport(50, 8);
+  // Card positioning system with built-in viewport handling
+  const {
+    getCardPosition: calculatePositionFromComposable,
+    getCardRotation: calculateRotationFromComposable,
+    refreshTrigger,
+  } = useCardPositioning();
 
-  // Card positioning system
-  const { getCardPosition, getCardRotation } = useCardPositioning(viewportWidth);
+  // Memoize card position and rotation calculations to improve performance
+  const cardPositionCache = new Map<number, [number, number, number]>();
+  const cardRotationCache = new Map<number, [number, number, number]>();
+
+  // Optimized position getter with caching
+  function getCardPosition(card: Card, index: number): [number, number, number] {
+    if (!isSceneReady.value) {
+      return calculatePositionFromComposable(index, availableAndAnimatingCards.value.length);
+    }
+
+    // Cache by card ID for stable positioning
+    if (!cardPositionCache.has(card.id)) {
+      const position = calculatePositionFromComposable(
+        index,
+        availableAndAnimatingCards.value.length
+      );
+      cardPositionCache.set(card.id, position);
+    }
+    return cardPositionCache.get(card.id)!;
+  }
+
+  // Optimized rotation getter with caching
+  function getCardRotation(card: Card, index: number): [number, number, number] {
+    if (!isSceneReady.value) {
+      return calculateRotationFromComposable(index, availableAndAnimatingCards.value.length);
+    }
+
+    // Cache by card ID for stable rotation
+    if (!cardRotationCache.has(card.id)) {
+      const rotation = calculateRotationFromComposable(
+        index,
+        availableAndAnimatingCards.value.length
+      );
+      cardRotationCache.set(card.id, rotation);
+    }
+    return cardRotationCache.get(card.id)!;
+  }
 
   // Render order system for proper card stacking
   const renderOrderSystem = useRenderOrder();
@@ -146,38 +170,39 @@
     return availableCards;
   });
 
-  // Helper function to get the original index of a card in the available cards array
-  function getAvailableCardIndex(cardId: number): number {
-    return cardGameStore.availableCards.findIndex((card) => card.id === cardId);
-  }
-
-  // Setup and event handling
-  onMounted(() => {
-    // Initial viewport calculation
-    updateViewportSize();
-
-    // Setup responsive behavior with debounced resizing
-    let resizeTimeout: number | null = null;
-
-    const handleResize = () => {
-      if (resizeTimeout) {
-        window.clearTimeout(resizeTimeout);
-      }
-
-      resizeTimeout = window.setTimeout(() => {
-        updateViewportSize();
-        resizeTimeout = null;
-      }, 100); // 100ms debounce
-    };
-
-    window.addEventListener("resize", handleResize);
-
-    // Cleanup function to be called on unmount
-    onBeforeUnmount(() => {
-      if (resizeTimeout) {
-        window.clearTimeout(resizeTimeout);
-      }
-      window.removeEventListener("resize", handleResize);
-    });
+  // Watch for changes in card arrangement or refresh trigger
+  watch([availableAndAnimatingCards, refreshTrigger], () => {
+    // Clear caches when card arrangement changes
+    cardPositionCache.clear();
+    cardRotationCache.clear();
   });
+
+  // Watch for game reset to ensure card positions are recalculated
+  watch(
+    () => cardGameStore.resetCounter,
+    () => {
+      // Force clear position cache when game is reset
+      cardPositionCache.clear();
+      cardRotationCache.clear();
+
+      // Force a refresh of card positioning on reset
+      nextTick(() => {
+        // For each visible card, recalculate its position
+        availableAndAnimatingCards.value.forEach((card, index) => {
+          // Generate fresh position and rotation and update cache
+          const newPosition = calculatePositionFromComposable(
+            index,
+            availableAndAnimatingCards.value.length
+          );
+          const newRotation = calculateRotationFromComposable(
+            index,
+            availableAndAnimatingCards.value.length
+          );
+
+          cardPositionCache.set(card.id, newPosition);
+          cardRotationCache.set(card.id, newRotation);
+        });
+      });
+    }
+  );
 </script>
